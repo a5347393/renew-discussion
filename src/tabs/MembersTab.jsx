@@ -67,7 +67,7 @@ export function MembersTab({ onError }) {
       {formOpen && (
         <div className="anim-form-open" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, marginBottom: 16, boxShadow: "0 4px 16px rgba(0,0,0,0.09)" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: GREEN, letterSpacing: 2, marginBottom: 14 }}>{editId ? "編輯成員" : "新增成員"}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px", marginBottom: 12 }}>
+          <div className="form-grid-2" style={{ marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>姓名</div>
               <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="王大明" style={inp} />

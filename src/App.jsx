@@ -54,7 +54,7 @@ export default function App() {
   const tabBg = "#F2F1EE";
 
   return (
-    <div style={{ fontFamily: '"Noto Sans TC", -apple-system, system-ui, sans-serif', maxWidth: 720, margin: "0 auto", minHeight: "100vh", background: tabBg }}>
+    <div className="app-root" style={{ fontFamily: '"Noto Sans TC", -apple-system, system-ui, sans-serif', background: tabBg }}>
 
       {/* ── Header ── */}
       <div style={{
@@ -68,7 +68,7 @@ export default function App() {
 
         <div style={{ padding: "18px 20px 0", position: "relative" }}>
           {/* 頭部資訊列 */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+          <div className="header-meta">
             <div style={{ flex: 1, minWidth: 0 }}>
               {/* 品牌標籤 */}
               <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 4, color: "rgba(255,255,255,0.38)", marginBottom: 6, textTransform: "uppercase" }}>
@@ -91,7 +91,7 @@ export default function App() {
             </div>
 
             {/* 角色切換 + 登出 */}
-            <div style={{ display: "flex", gap: 5, alignItems: "center", paddingTop: 2, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div className="header-controls">
               {ROLES.map(r => (
                 <button key={r} onClick={() => setRole(r)} className="btn-press"
                   style={{
@@ -139,7 +139,7 @@ export default function App() {
       </div>
 
       {/* Tab 內容 */}
-      <div key={tab} className="tab-pane" style={{ padding: "20px 16px 44px" }}>
+      <div key={tab} className="tab-pane tab-content-area">
         {tab === "logs" && <LogsTab role={role} onError={showError} />}
         {tab === "members" && <MembersTab onError={showError} />}
         {tab === "project" && <ProjectTab onError={showError} />}

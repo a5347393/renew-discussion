@@ -405,7 +405,7 @@ export function LogsTab({ role, onError }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: GREEN, letterSpacing: 2, marginBottom: 14 }}>
             {editId ? "編輯記錄" : "新增討論記錄"}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px", marginBottom: 12 }}>
+          <div className="form-grid-2" style={{ marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>日期</div>
               <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={inp} />

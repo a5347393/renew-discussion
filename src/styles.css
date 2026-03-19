@@ -164,3 +164,71 @@ select:focus {
   background: rgba(10, 102, 71, 0.15);
   color: #074d34;
 }
+
+/* ---------- Responsive Layout ---------- */
+.app-root {
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* Desktop: darker outer bg + floating card shadow */
+@media (min-width: 800px) {
+  body { background: #C5C4C0; }
+  .app-root {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.07),
+      0 8px 40px rgba(0, 0, 0, 0.16);
+  }
+}
+
+/* Header meta row */
+.header-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Role-switcher + logout cluster */
+.header-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding-top: 2px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* 2-column form grid */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+}
+
+/* Tab content area */
+.tab-content-area {
+  padding: 20px 16px 44px;
+}
+
+/* Small phone: stack header, single-column grids */
+@media (max-width: 420px) {
+  .header-meta {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .header-controls {
+    justify-content: flex-start;
+    padding-top: 0;
+    width: 100%;
+  }
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .tab-content-area {
+    padding: 14px 12px 36px;
+  }
+}

@@ -37,7 +37,7 @@ export function ProjectTab({ onError }) {
 
       {editing ? (
         <div className="anim-form-open" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, boxShadow: "0 4px 16px rgba(0,0,0,0.09)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px", marginBottom: 14 }}>
+          <div className="form-grid-2" style={{ marginBottom: 14 }}>
             {PROJECT_FIELDS.map(f => (
               <div key={f.key} style={{ gridColumn: f.full ? "1/-1" : undefined }}>
                 <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{f.label}</div>
