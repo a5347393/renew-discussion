@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   collection, addDoc, updateDoc, deleteDoc,
   doc, onSnapshot, orderBy, query, serverTimestamp, arrayUnion,
@@ -42,9 +42,8 @@ export function LogsTab({ role, onError }) {
   const [form, setForm] = useState({ date: today(), stage: "初步評估", author: role, tag: "其他", content: "" });
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [photos, setPhotos] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
+  const [photos, setPhotos] = useState([]); // always URL strings after upload
+  const [uploadingCount, setUploadingCount] = useState(0);
   const [replyingId, setReplyingId] = useState(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySaving, setReplySaving] = useState(false);
@@ -110,50 +109,46 @@ export function LogsTab({ role, onError }) {
 
   const closeForm = () => { setFormOpen(false); setEditId(null); setPhotos([]); };
 
-  const handlePhotoSelect = (e) => {
-    setPhotos(prev => [...prev, ...Array.from(e.target.files)]);
+  const handlePhotoSelect = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     e.target.value = "";
-  };
-
-  const getPhotoURL = (photo) =>
-    typeof photo === "string" ? photo : URL.createObjectURL(photo);
-
-  const uploadPhotos = async (files) => {
-    const urls = [];
+    setUploadingCount(c => c + files.length);
     for (const file of files) {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: fd }
-      );
-      if (!res.ok) throw new Error("上傳失敗");
-      const data = await res.json();
-      urls.push(data.secure_url);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+          { method: "POST", body: fd }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || "上傳失敗");
+        setPhotos(prev => [...prev, data.secure_url]);
+      } catch (err) {
+        console.error("Photo upload error:", err);
+        onError(`照片上傳失敗：${err.message}`);
+      } finally {
+        setUploadingCount(c => c - 1);
+      }
     }
-    return urls;
   };
 
   const save = async () => {
     if (!form.content.trim()) return;
     setSaving(true);
     try {
-      const newFiles = photos.filter(p => typeof p !== "string");
-      const existingUrls = photos.filter(p => typeof p === "string");
-      if (newFiles.length > 0) setUploading(true);
-      const newUrls = newFiles.length > 0 ? await uploadPhotos(newFiles) : [];
-      setUploading(false);
-      const allPhotos = [...existingUrls, ...newUrls];
       if (editId) {
-        await updateDoc(doc(db, "logs", editId), { ...form, photos: allPhotos, updatedAt: serverTimestamp() });
+        await updateDoc(doc(db, "logs", editId), { ...form, photos, updatedAt: serverTimestamp() });
       } else {
-        await addDoc(collection(db, "logs"), { ...form, role, photos: allPhotos, replies: [], createdAt: serverTimestamp() });
+        await addDoc(collection(db, "logs"), { ...form, role, photos, replies: [], createdAt: serverTimestamp() });
       }
       closeForm();
-    } catch {
+    } catch (err) {
+      console.error("Save error:", err);
       onError("儲存失敗，請確認網路連線後重試");
-    } finally { setSaving(false); setUploading(false); }
+    } finally { setSaving(false); }
   };
 
   const del = async (id) => {
@@ -464,22 +459,28 @@ export function LogsTab({ role, onError }) {
 
           {/* 照片 */}
           <div style={{ marginBottom: 14 }}>
-            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: "none" }} />
-            <button onClick={() => fileInputRef.current.click()} className="btn-press"
-              style={{ fontSize: 12, padding: "5px 13px", borderRadius: 20, border: "1.5px solid #e8e8e4", background: "#f8f8f6", color: "#555", cursor: "pointer", fontFamily: "inherit" }}>
+            <label className="btn-press"
+              style={{ display: "inline-block", fontSize: 12, padding: "5px 13px", borderRadius: 20, border: "1.5px solid #e8e8e4", background: "#f8f8f6", color: "#555", cursor: "pointer", fontFamily: "inherit" }}>
               附加照片
-            </button>
-            {photos.length > 0 && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                {photos.map((photo, i) => (
-                  <div key={i} style={{ position: "relative" }}>
-                    <img src={getPhotoURL(photo)} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
+              <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: "none" }} />
+            </label>
+            {(photos.length > 0 || uploadingCount > 0) && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
+                {photos.map((url, i) => (
+                  <div key={url} style={{ position: "relative" }}>
+                    <img src={url} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
                     <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))} className="btn-press"
                       style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#A32D2D", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
                       ×
                     </button>
                   </div>
                 ))}
+                {uploadingCount > 0 && (
+                  <div style={{ width: 64, height: 64, borderRadius: 8, border: "1px dashed #ccc", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 4, background: "#fafaf8" }}>
+                    <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+                    <span style={{ fontSize: 10, color: "#999" }}>{uploadingCount}張</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -488,9 +489,9 @@ export function LogsTab({ role, onError }) {
             <button onClick={closeForm} className="btn-press" style={{ fontSize: 13, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
               取消
             </button>
-            <button onClick={save} disabled={!form.content.trim() || saving} className="btn-press"
-              style={{ fontSize: 13, padding: "8px 20px", borderRadius: 8, border: "none", background: form.content.trim() ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-              {uploading ? "上傳照片中…" : saving ? "儲存中…" : editId ? "更新" : "儲存"}
+            <button onClick={save} disabled={!form.content.trim() || saving || uploadingCount > 0} className="btn-press"
+              style={{ fontSize: 13, padding: "8px 20px", borderRadius: 8, border: "none", background: (form.content.trim() && uploadingCount === 0) ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+              {saving ? "儲存中…" : uploadingCount > 0 ? "上傳照片中…" : editId ? "更新" : "儲存"}
             </button>
           </div>
         </div>
