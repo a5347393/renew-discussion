@@ -17,32 +17,59 @@ export default function App() {
   const [role, setRole] = useState(ROLES[0]);
 
   return (
-    <div style={{ fontFamily: "-apple-system, system-ui, sans-serif", maxWidth: 720, margin: "0 auto", minHeight: "100vh", paddingBottom: 60 }}>
-      <div style={{ background: GREEN, padding: "16px 20px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 4, color: "#6FD4AA", marginBottom: 6 }}>老宅延壽機能復新計畫</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 2 }}>專案管理後台</div>
-        <div style={{ fontSize: 12, color: "#A8E6CC", marginBottom: 14 }}>業主・技師・設計師 共用・Firebase 即時同步</div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "#6FD4AA" }}>身份：</span>
-          {ROLES.map(r => (
-            <button key={r} onClick={() => setRole(r)}
-              style={{ fontSize: 12, padding: "4px 13px", borderRadius: 20, border: "1.5px solid rgba(255,255,255,0.3)", background: role === r ? "#fff" : "transparent", color: role === r ? GREEN : "rgba(255,255,255,0.8)", cursor: "pointer", fontFamily: "inherit", fontWeight: role === r ? 700 : 400, transition: "all .15s" }}>
-              {r}
+    <div style={{ fontFamily: '"Noto Sans TC", -apple-system, system-ui, sans-serif', maxWidth: 720, margin: "0 auto", minHeight: "100vh", background: "#F5F5F3" }}>
+      {/* Header */}
+      <div style={{ background: GREEN, padding: "14px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 3, color: "#6FD4AA", marginBottom: 3 }}>老宅延壽機能復新計畫</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>專案管理後台</div>
+          </div>
+          {/* Role switcher */}
+          <div style={{ display: "flex", gap: 5, alignItems: "center", paddingTop: 4, flexShrink: 0 }}>
+            {ROLES.map(r => (
+              <button key={r} onClick={() => setRole(r)}
+                style={{
+                  fontSize: 12, padding: "5px 12px", borderRadius: 20,
+                  border: "1.5px solid rgba(255,255,255,0.3)",
+                  background: role === r ? "rgba(255,255,255,0.95)" : "transparent",
+                  color: role === r ? GREEN : "rgba(255,255,255,0.85)",
+                  cursor: "pointer", fontFamily: "inherit",
+                  fontWeight: role === r ? 700 : 400,
+                  transition: "all .15s",
+                  whiteSpace: "nowrap",
+                }}>
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Segment tab — active tab merges into page background */}
+        <div style={{ display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: "10px 10px 0 0", padding: "4px 4px 0" }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{
+                flex: 1,
+                padding: "9px 6px",
+                border: "none",
+                borderRadius: tab === t.id ? "8px 8px 0 0" : 8,
+                background: tab === t.id ? "#F5F5F3" : "transparent",
+                color: tab === t.id ? GREEN : "rgba(255,255,255,0.65)",
+                fontSize: 12,
+                fontWeight: tab === t.id ? 700 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all .15s",
+                whiteSpace: "nowrap",
+              }}>
+              {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderBottom: "1.5px solid #e8e8e4", display: "flex", overflowX: "auto" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ fontSize: 13, padding: "13px 18px", border: "none", borderBottom: `2.5px solid ${tab === t.id ? GREEN : "transparent"}`, background: "transparent", color: tab === t.id ? GREEN : "#888", cursor: "pointer", fontFamily: "inherit", fontWeight: tab === t.id ? 700 : 400, whiteSpace: "nowrap", flexShrink: 0 }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ padding: "18px 16px" }}>
+      <div style={{ padding: "18px 16px 36px" }}>
         {tab === "logs" && <LogsTab role={role} />}
         {tab === "members" && <MembersTab />}
         {tab === "project" && <ProjectTab />}

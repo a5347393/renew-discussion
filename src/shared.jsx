@@ -59,6 +59,43 @@ export const inp = {
 
 export function today() { return new Date().toISOString().slice(0, 10); }
 
+/** 相對時間：支援 "YYYY-MM-DD" 日期字串與 ISO timestamp */
+export function relativeTime(input) {
+  if (!input) return "";
+  const isDateOnly = typeof input === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input);
+  // 日期字串設為當天中午，避免時區偏移導致日期跳變
+  const date = isDateOnly ? new Date(input + "T12:00:00") : new Date(input);
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 0) return date.toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" });
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (!isDateOnly) {
+    if (diffMins < 1) return "剛剛";
+    if (diffMins < 60) return `${diffMins} 分鐘前`;
+    if (diffHours < 24) return `${diffHours} 小時前`;
+  }
+  if (diffDays === 0) return "今天";
+  if (diffDays === 1) return "昨天";
+  if (diffDays < 7) return `${diffDays} 天前`;
+  return date.toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" });
+}
+
+/** 角色頭像 */
+export function Avatar({ name, role, size = 32 }) {
+  const colors = ROLE_COLORS[role] || { bg: "#F1EFE8", color: "#999" };
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: colors.bg, color: colors.color,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: Math.floor(size * 0.42), fontWeight: 700, flexShrink: 0,
+    }}>
+      {(name || "?").slice(0, 1)}
+    </div>
+  );
+}
+
 export function TagPill({ tag }) {
   const s = TAG_STYLES[tag] || TAG_STYLES["其他"];
   return (
