@@ -3,8 +3,12 @@ import {
   collection, addDoc, updateDoc, deleteDoc,
   doc, onSnapshot, orderBy, query, serverTimestamp, arrayUnion,
 } from "firebase/firestore";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../firebase";
+import { db } from "../firebase";
+
+// ── Cloudinary 設定（免費帳號，填入你的值）──────────────────────
+const CLOUDINARY_CLOUD_NAME = "YOUR_CLOUD_NAME";     // ← 填入
+const CLOUDINARY_UPLOAD_PRESET = "YOUR_UPLOAD_PRESET"; // ← 填入（unsigned preset）
+// ────────────────────────────────────────────────────────────────
 import {
   STAGES, TAGS, TAG_STYLES, GREEN, GREEN_LIGHT,
   inp, today, TagPill, Avatar, relativeTime,
@@ -78,10 +82,17 @@ export function LogsTab({ role, onError }) {
   const uploadPhotos = async (files) => {
     const urls = [];
     for (const file of files) {
-      const path = `discussions/${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const ref = storageRef(storage, path);
-      await uploadBytes(ref, file);
-      urls.push(await getDownloadURL(ref));
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      fd.append("eager", "w_1200,c_limit,q_auto:good"); // 自動壓縮
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: fd }
+      );
+      if (!res.ok) throw new Error("圖片上傳失敗");
+      const data = await res.json();
+      urls.push(data.secure_url);
     }
     return urls;
   };
@@ -321,11 +332,17 @@ export function LogsTab({ role, onError }) {
             {/* 照片縮圖 */}
             {log.photos?.length > 0 && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
-                {log.photos.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                    <img src={url} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
-                  </a>
-                ))}
+                {log.photos.map((url, i) => {
+                  // Cloudinary URL 縮圖轉換（72×72 裁切）
+                  const thumb = url.includes("/upload/")
+                    ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
+                    : url;
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                      <img src={thumb} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
+                    </a>
+                  );
+                })}
               </div>
             )}
 
