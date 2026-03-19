@@ -22,6 +22,8 @@ export function LogsTab({ role }) {
   const [replyingId, setReplyingId] = useState(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySaving, setReplySaving] = useState(false);
+  const [editingReply, setEditingReply] = useState(null); // { logId, index }
+  const [editingReplyContent, setEditingReplyContent] = useState("");
 
   useEffect(() => {
     const q = query(collection(db, "logs"), orderBy("createdAt", "desc"));
@@ -74,6 +76,17 @@ export function LogsTab({ role }) {
   };
 
   const del = async (id) => { if (confirm("確定刪除？")) await deleteDoc(doc(db, "logs", id)); };
+
+  const saveReplyEdit = async (log) => {
+    if (!editingReplyContent.trim()) return;
+    const { logId, index } = editingReply;
+    const newReplies = log.replies.map((r, i) =>
+      i === index ? { ...r, content: editingReplyContent.trim(), updatedAt: new Date().toISOString() } : r
+    );
+    await updateDoc(doc(db, "logs", logId), { replies: newReplies });
+    setEditingReply(null);
+    setEditingReplyContent("");
+  };
 
   const submitReply = async (logId) => {
     if (!replyContent.trim()) return;
@@ -254,20 +267,55 @@ export function LogsTab({ role }) {
             {/* 回復串 */}
             {hasReplies && (
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #F0F0EE", paddingLeft: 44 }}>
-                {replies.map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: i < replies.length - 1 ? 10 : 0 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F0EFE8", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                      {(r.author || "?").slice(0, 1)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: "#555" }}>{r.author}</span>
-                        <span style={{ fontSize: 10, color: "#bbb" }}>{relativeTime(r.createdAt)}</span>
+                {replies.map((r, i) => {
+                  const isEditingThis = editingReply?.logId === log.id && editingReply?.index === i;
+                  return (
+                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: i < replies.length - 1 ? 10 : 0 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F0EFE8", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                        {(r.author || "?").slice(0, 1)}
                       </div>
-                      <div style={{ fontSize: 12, color: "#444", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{r.content}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "#555" }}>{r.author}</span>
+                          <span style={{ fontSize: 10, color: "#bbb" }}>{relativeTime(r.createdAt)}</span>
+                          {r.updatedAt && <span style={{ fontSize: 10, color: "#ccc" }}>（已編輯）</span>}
+                          {!isEditingThis && (
+                            <button onClick={() => { setEditingReply({ logId: log.id, index: i }); setEditingReplyContent(r.content); }}
+                              style={{ fontSize: 10, padding: "1px 7px", borderRadius: 4, border: "1px solid #e8e8e4", background: "#f8f8f6", color: "#888", cursor: "pointer", fontFamily: "inherit", marginLeft: 2 }}>
+                              編輯
+                            </button>
+                          )}
+                        </div>
+                        {isEditingThis ? (
+                          <div>
+                            <div style={{ position: "relative", marginBottom: 6 }}>
+                              <textarea
+                                value={editingReplyContent}
+                                onChange={e => setEditingReplyContent(e.target.value)}
+                                rows={2}
+                                style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }}
+                                autoFocus
+                              />
+                              <span style={{ position: "absolute", right: 8, bottom: 6, fontSize: 10, color: "#ccc" }}>{editingReplyContent.length}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                              <button onClick={() => { setEditingReply(null); setEditingReplyContent(""); }}
+                                style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
+                                取消
+                              </button>
+                              <button onClick={() => saveReplyEdit(log)} disabled={!editingReplyContent.trim()}
+                                style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "none", background: editingReplyContent.trim() ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+                                儲存
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: "#444", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{r.content}</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
