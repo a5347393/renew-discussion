@@ -12,6 +12,7 @@ import {
 const CLOUDINARY_CLOUD_NAME = "dkyp5jocn";
 const CLOUDINARY_UPLOAD_PRESET = "ml_default";
 
+/* ── Skeleton Loading ── */
 function SkeletonCard() {
   return (
     <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: "4px solid #e8e8e4", borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
@@ -24,13 +25,90 @@ function SkeletonCard() {
       </div>
       <div style={{ paddingLeft: 44 }}>
         <div className="skeleton" style={{ height: 11, width: "90%", marginBottom: 6 }} />
-        <div className="skeleton" style={{ height: 11, width: "75%", marginBottom: 6 }} />
-        <div className="skeleton" style={{ height: 11, width: "55%" }} />
+        <div className="skeleton" style={{ height: 11, width: "70%", marginBottom: 6 }} />
+        <div className="skeleton" style={{ height: 11, width: "50%" }} />
       </div>
     </div>
   );
 }
 
+/* ── 日期分組輔助 ── */
+function groupByDate(logsList) {
+  const groups = new Map();
+  logsList.forEach(log => {
+    const key = log.date || "";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(log);
+  });
+  return [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
+}
+
+function DateDivider({ dateStr, isFirst }) {
+  const t = today();
+  const yd = new Date(t + "T12:00:00");
+  yd.setDate(yd.getDate() - 1);
+  const yStr = yd.toISOString().slice(0, 10);
+  let label;
+  if (dateStr === t) label = "今天";
+  else if (dateStr === yStr) label = "昨天";
+  else {
+    const d = new Date((dateStr || t) + "T12:00:00");
+    label = d.toLocaleDateString("zh-TW", { month: "long", day: "numeric" });
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, marginTop: isFirst ? 0 : 18 }}>
+      <div style={{ flex: 1, height: 1, background: "#EDEDEA" }} />
+      <span style={{ fontSize: 11, color: "#bbb", fontWeight: 600, whiteSpace: "nowrap" }}>{label}</span>
+      <div style={{ flex: 1, height: 1, background: "#EDEDEA" }} />
+    </div>
+  );
+}
+
+/* ── 角色摘要卡 ── */
+function SummaryCard({ logs, role, newCount }) {
+  const t = today();
+  const todayCount = logs.filter(l => l.date === t).length;
+  const awaitingCount = logs.filter(l => !l.replies || l.replies.length === 0).length;
+  const designCount = logs.filter(l => l.tag === "設計").length;
+  const inProgressCount = logs.filter(l => l.stage === "施工中" || l.stage === "申請送件").length;
+
+  const statsByRole = {
+    業主: [
+      { label: "待回復討論", value: awaitingCount, highlight: awaitingCount > 0 },
+      { label: "今日動態", value: todayCount, highlight: false },
+      { label: "新訊息", value: newCount, highlight: newCount > 0 },
+    ],
+    技師: [
+      { label: "今日記錄", value: todayCount, highlight: todayCount > 0 },
+      { label: "待回復", value: awaitingCount, highlight: awaitingCount > 0 },
+      { label: "新訊息", value: newCount, highlight: newCount > 0 },
+    ],
+    設計師: [
+      { label: "設計討論", value: designCount, highlight: false },
+      { label: "施工/送件中", value: inProgressCount, highlight: false },
+      { label: "新訊息", value: newCount, highlight: newCount > 0 },
+    ],
+  };
+
+  const stats = statsByRole[role] || statsByRole["業主"];
+  const AMBER = "#9C4B00";
+
+  return (
+    <div className="anim-fade-in" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: "14px 16px 12px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      <div style={{ fontSize: 10, color: "#aaa", fontWeight: 700, letterSpacing: 1.5, marginBottom: 12 }}>{role} 視角摘要</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ textAlign: "center", padding: "8px 4px", borderRadius: 8, background: s.highlight ? (s.label.includes("新訊") ? GREEN_LIGHT : "#FEF3E6") : "transparent" }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: s.highlight ? (s.label.includes("新訊") ? GREEN : AMBER) : "#333", lineHeight: 1.1 }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: s.highlight ? (s.label.includes("新訊") ? GREEN : AMBER) : "#999", marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════ Main Component ══════════════ */
 export function LogsTab({ role, onError }) {
   const [logs, setLogs] = useState([]);
   const [members, setMembers] = useState([]);
@@ -53,13 +131,11 @@ export function LogsTab({ role, onError }) {
 
   const [confirm, confirmModal] = useConfirm();
 
-  // ── 已讀/未讀：記錄上次瀏覽時間 ──
   useEffect(() => {
     const uid = auth.currentUser?.uid || "guest";
     const key = `renew-last-read-${uid}`;
     const last = localStorage.getItem(key);
     setUnreadBefore(last ? new Date(last) : null);
-    // 3 秒後更新「已讀」時間
     const timer = setTimeout(() => {
       localStorage.setItem(key, new Date().toISOString());
     }, 3000);
@@ -106,16 +182,13 @@ export function LogsTab({ role, onError }) {
     setPhotos(log?.photos || []);
     setFormOpen(true);
   };
-
   const closeForm = () => { setFormOpen(false); setEditId(null); setPhotos([]); };
 
   const handlePhotoSelect = (e) => {
     setPhotos(prev => [...prev, ...Array.from(e.target.files)]);
     e.target.value = "";
   };
-
-  const getPhotoURL = (photo) =>
-    typeof photo === "string" ? photo : URL.createObjectURL(photo);
+  const getPhotoURL = (photo) => typeof photo === "string" ? photo : URL.createObjectURL(photo);
 
   const uploadPhotos = async (files) => {
     const urls = [];
@@ -123,13 +196,9 @@ export function LogsTab({ role, onError }) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: fd }
-      );
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { method: "POST", body: fd });
       if (!res.ok) throw new Error("上傳失敗");
-      const data = await res.json();
-      urls.push(data.secure_url);
+      urls.push((await res.json()).secure_url);
     }
     return urls;
   };
@@ -150,9 +219,8 @@ export function LogsTab({ role, onError }) {
         await addDoc(collection(db, "logs"), { ...form, role, photos: allPhotos, replies: [], createdAt: serverTimestamp() });
       }
       closeForm();
-    } catch {
-      onError("儲存失敗，請確認網路連線後重試");
-    } finally { setSaving(false); setUploading(false); }
+    } catch { onError("儲存失敗，請確認網路連線後重試"); }
+    finally { setSaving(false); setUploading(false); }
   };
 
   const del = async (id) => {
@@ -171,8 +239,9 @@ export function LogsTab({ role, onError }) {
     if (!replyContent.trim()) return;
     setReplySaving(true);
     try {
-      const reply = { author: defaultAuthor, content: replyContent.trim(), date: today(), createdAt: new Date().toISOString() };
-      await updateDoc(doc(db, "logs", logId), { replies: arrayUnion(reply) });
+      await updateDoc(doc(db, "logs", logId), {
+        replies: arrayUnion({ author: defaultAuthor, content: replyContent.trim(), date: today(), createdAt: new Date().toISOString() }),
+      });
       setReplyingId(null); setReplyContent("");
     } catch { onError("回復失敗，請重試"); }
     finally { setReplySaving(false); }
@@ -182,10 +251,11 @@ export function LogsTab({ role, onError }) {
     if (!editingReplyContent.trim()) return;
     const { logId, index } = editingReply;
     try {
-      const newReplies = log.replies.map((r, i) =>
-        i === index ? { ...r, content: editingReplyContent.trim(), updatedAt: new Date().toISOString() } : r
-      );
-      await updateDoc(doc(db, "logs", logId), { replies: newReplies });
+      await updateDoc(doc(db, "logs", logId), {
+        replies: log.replies.map((r, i) =>
+          i === index ? { ...r, content: editingReplyContent.trim(), updatedAt: new Date().toISOString() } : r
+        ),
+      });
       setEditingReply(null); setEditingReplyContent("");
     } catch { onError("更新失敗，請重試"); }
   };
@@ -194,8 +264,7 @@ export function LogsTab({ role, onError }) {
     const ok = await confirm("確定刪除此回復？");
     if (!ok) return;
     try {
-      const newReplies = log.replies.filter((_, i) => i !== index);
-      await updateDoc(doc(db, "logs", log.id), { replies: newReplies });
+      await updateDoc(doc(db, "logs", log.id), { replies: log.replies.filter((_, i) => i !== index) });
     } catch { onError("刪除回復失敗，請重試"); }
   };
 
@@ -214,11 +283,9 @@ export function LogsTab({ role, onError }) {
   };
 
   const stageCounts = STAGES.reduce((a, s) => ({ ...a, [s]: logs.filter(l => l.stage === s).length }), {});
-
   const baseFiltered = logs.filter(l =>
     (filter === "全部" || l.stage === filter) &&
-    (!search || l.content?.includes(search) || l.author?.includes(search) ||
-      l.replies?.some(r => r.content?.includes(search)))
+    (!search || l.content?.includes(search) || l.author?.includes(search) || l.replies?.some(r => r.content?.includes(search)))
   );
   const pinnedLogs = baseFiltered.filter(l => l.pinned);
   const unpinnedLogs = baseFiltered.filter(l => !l.pinned);
@@ -235,10 +302,12 @@ export function LogsTab({ role, onError }) {
     }}>{label}</button>
   );
 
+  /* ── Card Renderer ── */
   const renderCard = (log) => {
     const ts = TAG_STYLES[log.tag] || TAG_STYLES["其他"];
     const replies = log.replies || [];
     const hasReplies = replies.length > 0;
+    const needsReply = !hasReplies; // 沒有任何回復 → 標示待回復
     const isReplying = replyingId === log.id;
     const authorRole = getAuthorRole(log);
     const _isNew = isNew(log);
@@ -250,37 +319,29 @@ export function LogsTab({ role, onError }) {
           border: `1px solid ${log.pinned ? "#F0E8D8" : _isNew ? "#C8ECDF" : "#EDEDEA"}`,
           borderLeft: `4px solid ${ts.color}`,
           borderRadius: 12, padding: "14px 16px", marginBottom: 10,
-          boxShadow: log.pinned
-            ? "0 2px 10px rgba(156,75,0,0.07)"
-            : _isNew ? "0 2px 8px rgba(10,102,71,0.07)"
-            : "0 1px 4px rgba(0,0,0,0.05)",
+          boxShadow: log.pinned ? "0 2px 10px rgba(156,75,0,0.07)" : _isNew ? "0 2px 8px rgba(10,102,71,0.07)" : "0 1px 4px rgba(0,0,0,0.05)",
         }}>
 
-        {/* 卡片頭部 */}
+        {/* 頭部 */}
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
           <Avatar name={log.author} role={authorRole} size={34} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#222" }}>{log.author}</span>
               <TagPill tag={log.tag} />
               <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>{log.stage}</span>
-              {/* 右側徽章 */}
-              <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>
-                {_isNew && (
-                  <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: GREEN_LIGHT, color: GREEN, fontWeight: 700, border: `1px solid ${GREEN}33`, letterSpacing: 0.5 }}>NEW</span>
-                )}
-                {log.pinned && (
-                  <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: "#FEF3E6", color: "#9C4B00", fontWeight: 700, border: "1px solid #9C4B0033" }}>釘選</span>
-                )}
+              {/* 右側徽章群 */}
+              <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                {_isNew && <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: GREEN_LIGHT, color: GREEN, fontWeight: 700, border: `1px solid ${GREEN}33` }}>NEW</span>}
+                {log.pinned && <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: "#FEF3E6", color: "#9C4B00", fontWeight: 700, border: "1px solid #9C4B0033" }}>釘選</span>}
+                {needsReply && !log.pinned && !_isNew && <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: "#FEF3E6", color: "#9C4B00", border: "1px solid #9C4B0033" }}>待回復</span>}
                 <span style={{ fontSize: 11, color: "#bbb" }}>
                   {relativeTime(log.date)}
                   {log.updatedAt && <span style={{ marginLeft: 4 }}>（已編輯）</span>}
                 </span>
               </span>
             </div>
-            {hasReplies && (
-              <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>{replies.length} 則回復</div>
-            )}
+            {hasReplies && <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>{replies.length} 則回復</div>}
           </div>
         </div>
 
@@ -293,9 +354,7 @@ export function LogsTab({ role, onError }) {
         {log.photos?.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
             {log.photos.map((url, i) => {
-              const thumb = url.includes("/upload/")
-                ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
-                : url;
+              const thumb = url.includes("/upload/") ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/") : url;
               return (
                 <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="photo-wrap">
                   <img src={thumb} alt="" />
@@ -327,18 +386,13 @@ export function LogsTab({ role, onError }) {
                         </span>
                       )}
                     </div>
-
                     {isEditingThis ? (
                       <div className="anim-form-open">
                         <div style={{ position: "relative", marginBottom: 6 }}>
-                          <textarea
-                            value={editingReplyContent}
-                            onChange={e => setEditingReplyContent(e.target.value)}
+                          <textarea value={editingReplyContent} onChange={e => setEditingReplyContent(e.target.value)}
                             onKeyDown={e => handleContentKeyDown(e, () => saveReplyEdit(log))}
                             rows={2} placeholder="Ctrl+Enter 送出"
-                            style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }}
-                            autoFocus
-                          />
+                            style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }} autoFocus />
                           <span style={{ position: "absolute", right: 8, bottom: 6, fontSize: 10, color: "#ccc" }}>{editingReplyContent.length}</span>
                         </div>
                         <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -360,13 +414,10 @@ export function LogsTab({ role, onError }) {
         {isReplying && (
           <div className="anim-form-open" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0F0EE" }}>
             <div style={{ position: "relative", marginBottom: 8 }}>
-              <textarea
-                value={replyContent} onChange={e => setReplyContent(e.target.value)}
+              <textarea value={replyContent} onChange={e => setReplyContent(e.target.value)}
                 onKeyDown={e => handleContentKeyDown(e, () => submitReply(log.id))}
                 rows={2} placeholder="輸入回復… (Ctrl+Enter 送出)"
-                style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 22 }}
-                autoFocus
-              />
+                style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 22 }} autoFocus />
               <span style={{ position: "absolute", right: 10, bottom: 7, fontSize: 10, color: "#ccc" }}>{replyContent.length}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
@@ -381,11 +432,8 @@ export function LogsTab({ role, onError }) {
           {hasReplies && !isReplying && (
             <span style={{ fontSize: 10, color: "#bbb", marginRight: "auto" }}>已有回復，原文不可修改</span>
           )}
-          {/* 釘選切換 */}
           {smBtn(log.pinned ? "取消釘選" : "釘選", () => togglePin(log.id, log.pinned), {
-            style: log.pinned
-              ? { background: "#FEF3E6", color: "#9C4B00", border: "1px solid #9C4B0033" }
-              : {},
+            style: log.pinned ? { background: "#FEF3E6", color: "#9C4B00", border: "1px solid #9C4B0033" } : {},
           })}
           {!isReplying && smBtn("回復", () => { setReplyingId(log.id); setReplyContent(""); })}
           {!hasReplies && smBtn("編輯", () => openForm(log))}
@@ -395,9 +443,15 @@ export function LogsTab({ role, onError }) {
     );
   };
 
+  /* ══════════════ JSX ══════════════ */
   return (
     <div>
       {confirmModal}
+
+      {/* 角色摘要卡 */}
+      {!loading && logs.length > 0 && (
+        <SummaryCard logs={logs} role={role} newCount={newCount} />
+      )}
 
       {/* 新增/編輯表單 */}
       {formOpen && (
@@ -435,21 +489,15 @@ export function LogsTab({ role, onError }) {
               </div>
             </div>
           </div>
-
           <div style={{ position: "relative", marginBottom: 10 }}>
-            <textarea
-              value={form.content}
-              onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
+            <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
               onKeyDown={e => handleContentKeyDown(e, save)}
               rows={4} placeholder="記錄討論重點、決定事項… (Ctrl+Enter 送出)"
-              style={{ ...inp, resize: "vertical", lineHeight: 1.7, paddingBottom: 24 }}
-            />
+              style={{ ...inp, resize: "vertical", lineHeight: 1.7, paddingBottom: 24 }} />
             <span style={{ position: "absolute", right: 10, bottom: 8, fontSize: 10, color: form.content.length > 400 ? "#A32D2D" : "#ccc" }}>
               {form.content.length}
             </span>
           </div>
-
-          {/* 照片 */}
           <div style={{ marginBottom: 14 }}>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: "none" }} />
             <button onClick={() => fileInputRef.current.click()} className="btn-press"
@@ -462,19 +510,14 @@ export function LogsTab({ role, onError }) {
                   <div key={i} style={{ position: "relative" }}>
                     <img src={getPhotoURL(photo)} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
                     <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))} className="btn-press"
-                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#A32D2D", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-                      ×
-                    </button>
+                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#A32D2D", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>×</button>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={closeForm} className="btn-press" style={{ fontSize: 13, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
-              取消
-            </button>
+            <button onClick={closeForm} className="btn-press" style={{ fontSize: 13, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>取消</button>
             <button onClick={save} disabled={!form.content.trim() || saving} className="btn-press"
               style={{ fontSize: 13, padding: "8px 20px", borderRadius: 8, border: "none", background: form.content.trim() ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
               {uploading ? "上傳照片中…" : saving ? "儲存中…" : editId ? "更新" : "儲存"}
@@ -512,21 +555,18 @@ export function LogsTab({ role, onError }) {
           <span style={{ fontSize: 12, color: "#888" }}>
             {filter === "全部" ? `共 ${baseFiltered.length} 筆` : `${filter} · ${baseFiltered.length} 筆`}
           </span>
-          {newCount > 0 && (
-            <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>{newCount} 則新訊息</span>
-          )}
+          {newCount > 0 && <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>{newCount} 則新訊息</span>}
         </div>
         {(filter !== "全部" || search) && (
           <button onClick={() => { setFilter("全部"); setSearch(""); }} className="btn-press"
-            style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>
-            清除篩選
-          </button>
+            style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>清除篩選</button>
         )}
       </div>
 
-      {/* 載入 skeleton */}
+      {/* Skeleton Loading */}
       {loading && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
 
+      {/* 空狀態 */}
       {!loading && baseFiltered.length === 0 && (
         <div style={{ textAlign: "center", padding: 48, color: "#bbb", fontSize: 13 }}>
           {search ? `找不到「${search}」相關記錄` : "尚無討論記錄"}
@@ -540,24 +580,21 @@ export function LogsTab({ role, onError }) {
             <span style={{ fontSize: 10, fontWeight: 700, color: "#9C4B00", letterSpacing: 1 }}>釘選記錄</span>
             <div style={{ flex: 1, height: 1, background: "#F0E8D8" }} />
           </div>
-          <div className="card-stagger">{pinnedLogs.map(renderCard)}</div>
+          {pinnedLogs.map(renderCard)}
         </>
       )}
 
-      {/* 一般記錄分隔線 */}
-      {pinnedLogs.length > 0 && unpinnedLogs.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }}>
-          <div style={{ flex: 1, height: 1, background: "#EDEDEA" }} />
-          <span style={{ fontSize: 10, color: "#bbb" }}>其他討論</span>
-          <div style={{ flex: 1, height: 1, background: "#EDEDEA" }} />
+      {/* 一般記錄 — 日期分組 */}
+      {groupByDate(unpinnedLogs).map(([dateKey, dateLogs], idx) => (
+        <div key={dateKey}>
+          <DateDivider dateStr={dateKey} isFirst={idx === 0 && pinnedLogs.length === 0} />
+          {dateLogs.map(renderCard)}
         </div>
-      )}
-
-      <div className="card-stagger">{unpinnedLogs.map(renderCard)}</div>
+      ))}
 
       {!formOpen && (
         <button onClick={() => openForm()} className="btn-press"
-          style={{ width: "100%", padding: 13, borderRadius: 10, border: `1.5px dashed ${GREEN}`, background: "transparent", color: GREEN, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>
+          style={{ width: "100%", padding: 13, borderRadius: 10, border: `1.5px dashed ${GREEN}`, background: "transparent", color: GREEN, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 8 }}>
           + 新增討論記錄
         </button>
       )}
