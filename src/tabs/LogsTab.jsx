@@ -6,7 +6,7 @@ import {
 import { db, auth } from "../firebase";
 import {
   STAGES, TAGS, TAG_STYLES, GREEN, GREEN_LIGHT,
-  inp, today, TagPill, Avatar, relativeTime, useConfirm,
+  inp, today, TagPill, Avatar, relativeTime, useConfirm, Lightbox,
 } from "../shared";
 import { PdfExportButton } from "../PdfExport";
 
@@ -52,6 +52,7 @@ export function LogsTab({ role, onError }) {
   const [unreadBefore, setUnreadBefore] = useState(null);
 
   const [confirm, confirmModal] = useConfirm();
+  const [lightbox, setLightbox] = useState(null); // { photos, index }
 
   // ── 已讀/未讀：記錄上次瀏覽時間 ──
   useEffect(() => {
@@ -293,9 +294,11 @@ export function LogsTab({ role, onError }) {
                 ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
                 : url;
               return (
-                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="photo-wrap">
+                <button key={i} onClick={() => setLightbox({ photos: log.photos, index: i })}
+                  className="photo-wrap btn-press"
+                  style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
                   <img src={thumb} alt="" />
-                </a>
+                </button>
               );
             })}
           </div>
@@ -394,6 +397,13 @@ export function LogsTab({ role, onError }) {
   return (
     <div>
       {confirmModal}
+      {lightbox && (
+        <Lightbox
+          photos={lightbox.photos}
+          startIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
+      )}
 
       {/* 新增/編輯表單 */}
       {formOpen && (

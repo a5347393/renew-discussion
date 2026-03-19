@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export const STAGES = ["初步評估", "設計規劃", "申請送件", "施工中", "驗收完成"];
 export const TAGS = ["結構", "預算", "設計", "施工", "法規", "其他"];
@@ -104,6 +104,114 @@ export function TagPill({ tag }) {
     <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
       {tag}
     </span>
+  );
+}
+
+/** Lightbox 照片瀏覽 */
+export function Lightbox({ photos, startIndex = 0, onClose }) {
+  const [idx, setIdx] = useState(startIndex);
+  const total = photos.length;
+
+  const prev = useCallback(() => setIdx(i => (i - 1 + total) % total), [total]);
+  const next = useCallback(() => setIdx(i => (i + 1) % total), [total]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, prev, next]);
+
+  // touch swipe
+  const touch = useState(null);
+  const onTouchStart = (e) => touch[1](e.touches[0].clientX);
+  const onTouchEnd = (e) => {
+    if (touch[0] == null) return;
+    const dx = e.changedTouches[0].clientX - touch[0];
+    if (dx < -40) next();
+    else if (dx > 40) prev();
+    touch[1](null);
+  };
+
+  const url = photos[idx];
+  const full = url.includes("/upload/")
+    ? url.replace("/upload/", "/upload/q_auto,f_auto/")
+    : url;
+
+  return (
+    <div
+      onClick={onClose}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      style={{
+        position: "fixed", inset: 0, zIndex: 20000,
+        background: "rgba(0,0,0,0.92)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: '"Noto Sans TC", sans-serif',
+      }}>
+      {/* Close */}
+      <button onClick={onClose} style={{
+        position: "absolute", top: 16, right: 16, zIndex: 1,
+        background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%",
+        width: 40, height: 40, color: "#fff", fontSize: 20, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>✕</button>
+
+      {/* Counter */}
+      {total > 1 && (
+        <div style={{
+          position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)",
+          color: "rgba(255,255,255,0.6)", fontSize: 13,
+        }}>{idx + 1} / {total}</div>
+      )}
+
+      {/* Prev */}
+      {total > 1 && (
+        <button onClick={e => { e.stopPropagation(); prev(); }} style={{
+          position: "absolute", left: 12, background: "rgba(255,255,255,0.15)",
+          border: "none", borderRadius: "50%", width: 44, height: 44,
+          color: "#fff", fontSize: 22, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>‹</button>
+      )}
+
+      {/* Image */}
+      <img
+        src={full}
+        alt=""
+        onClick={e => e.stopPropagation()}
+        style={{
+          maxWidth: "90vw", maxHeight: "88vh",
+          objectFit: "contain", borderRadius: 8,
+          boxShadow: "0 8px 48px rgba(0,0,0,0.5)",
+          userSelect: "none",
+        }}
+      />
+
+      {/* Next */}
+      {total > 1 && (
+        <button onClick={e => { e.stopPropagation(); next(); }} style={{
+          position: "absolute", right: 12, background: "rgba(255,255,255,0.15)",
+          border: "none", borderRadius: "50%", width: 44, height: 44,
+          color: "#fff", fontSize: 22, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>›</button>
+      )}
+
+      {/* Open original */}
+      <a
+        href={url} target="_blank" rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)",
+          color: "rgba(255,255,255,0.45)", fontSize: 12, textDecoration: "none",
+        }}>
+        開啟原始檔 ↗
+      </a>
+    </div>
   );
 }
 
