@@ -3,14 +3,21 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { PROGRESS_ITEMS, STATUS_OPTS, STATUS_COLORS, GREEN, GREEN_LIGHT, inp } from "../shared";
 
-export function ProgressTab() {
+export function ProgressTab({ onError }) {
   const [progress, setProgress] = useState({});
+  const [projectData, setProjectData] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
 
-  useEffect(() => onSnapshot(doc(db, "progress", "main"), snap => {
-    if (snap.exists()) setProgress(snap.data());
-  }), []);
+  useEffect(() => onSnapshot(doc(db, "progress", "main"),
+    snap => { if (snap.exists()) setProgress(snap.data()); },
+    () => onError("讀取進度失敗")
+  ), []);
+
+  useEffect(() => onSnapshot(doc(db, "project", "main"),
+    snap => { if (snap.exists()) setProjectData(snap.data()); },
+    () => {}
+  ), []);
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(""), 1800); };
 
@@ -21,31 +28,101 @@ export function ProgressTab() {
     try {
       await setDoc(doc(db, "progress", "main"), { ...updated, updatedAt: serverTimestamp() });
       showToast("已更新");
+    } catch {
+      onError("更新失敗，請重試");
     } finally { setSaving(false); }
+  };
+
+  const printReport = () => {
+    const doneCount = PROGRESS_ITEMS.filter(i => progress[i.id]?.status === "已完成").length;
+    const rows = PROGRESS_ITEMS.map((item, idx) => {
+      const st = progress[item.id]?.status || "未開始";
+      const note = progress[item.id]?.note || "—";
+      const date = progress[item.id]?.date || "—";
+      const statusColor = { 已完成: "#0A6647", 進行中: "#185FA5", 待確認: "#9C4B00", 未開始: "#888" }[st] || "#888";
+      return `<tr>
+        <td style="text-align:center">${idx + 1}</td>
+        <td>${item.label}</td>
+        <td style="color:${statusColor};font-weight:600">${st}</td>
+        <td>${date}</td>
+        <td>${note}</td>
+      </tr>`;
+    }).join("");
+
+    const projectInfo = projectData ? `
+      <table class="info-table">
+        <tr><th>業主</th><td>${projectData.owner || "—"}</td><th>電話</th><td>${projectData.owner_phone || "—"}</td></tr>
+        <tr><th>地址</th><td colspan="3">${projectData.address || "—"}</td></tr>
+        <tr><th>屋齡</th><td>${projectData.age ? projectData.age + " 年" : "—"}</td><th>樓層</th><td>${projectData.floors ? projectData.floors + " 層" : "—"}</td></tr>
+        <tr><th>建坪</th><td>${projectData.area ? projectData.area + " ㎡" : "—"}</td><th>預計完工</th><td>${projectData.target_date || "—"}</td></tr>
+      </table>` : "";
+
+    const html = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Noto Sans TC", sans-serif; color: #222; padding: 32px 40px; font-size: 13px; }
+  .header { border-bottom: 3px solid #0A6647; padding-bottom: 12px; margin-bottom: 20px; }
+  .title { font-size: 22px; font-weight: 700; color: #0A6647; }
+  .subtitle { font-size: 12px; color: #888; margin-top: 4px; }
+  .section-title { font-size: 12px; font-weight: 700; color: #888; letter-spacing: 2px; margin: 20px 0 10px; }
+  .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  .info-table th { background: #F5F5F3; color: #555; font-weight: 600; padding: 7px 10px; text-align: left; width: 80px; border: 1px solid #E0E0DC; }
+  .info-table td { padding: 7px 10px; border: 1px solid #E0E0DC; }
+  .progress-table { width: 100%; border-collapse: collapse; }
+  .progress-table th { background: #0A6647; color: #fff; padding: 9px 10px; text-align: left; font-weight: 600; }
+  .progress-table td { padding: 9px 10px; border-bottom: 1px solid #EDEDEA; vertical-align: top; }
+  .progress-table tr:nth-child(even) td { background: #F9F9F7; }
+  .summary { display: inline-block; background: #E8F7F1; color: #0A6647; padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; margin-bottom: 16px; }
+  @media print { body { padding: 16px 24px; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="title">老宅延壽機能復新計畫</div>
+  <div class="subtitle">補助申請進度報告 &nbsp;·&nbsp; 列印日期：${new Date().toLocaleDateString("zh-TW")}</div>
+</div>
+${projectData ? `<div class="section-title">專案資料</div>${projectInfo}` : ""}
+<div class="section-title">申請進度</div>
+<div class="summary">${doneCount} / ${PROGRESS_ITEMS.length} 項完成</div>
+<table class="progress-table">
+  <thead><tr><th style="width:36px">#</th><th>項目</th><th style="width:80px">狀態</th><th style="width:100px">日期</th><th>備註</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 500);
   };
 
   const doneCount = PROGRESS_ITEMS.filter(i => progress[i.id]?.status === "已完成").length;
 
   return (
     <div>
-      {/* 進度摘要卡 */}
+      {/* 進度摘要 */}
       <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: "16px 18px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#444" }}>補助申請進度</span>
-          <span style={{ fontSize: 13, color: GREEN, fontWeight: 700 }}>{doneCount} / {PROGRESS_ITEMS.length} 完成</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 13, color: GREEN, fontWeight: 700 }}>{doneCount} / {PROGRESS_ITEMS.length} 完成</span>
+            <button onClick={printReport}
+              style={{ fontSize: 11, padding: "4px 12px", borderRadius: 20, border: `1.5px solid ${GREEN}`, background: "transparent", color: GREEN, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+              列印報告
+            </button>
+          </div>
         </div>
         <div style={{ height: 6, background: "#F0EFE8", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{
-            height: "100%",
-            width: `${(doneCount / PROGRESS_ITEMS.length) * 100}%`,
-            background: GREEN,
-            borderRadius: 4,
-            transition: "width .4s ease",
-          }} />
+          <div style={{ height: "100%", width: `${(doneCount / PROGRESS_ITEMS.length) * 100}%`, background: GREEN, borderRadius: 4, transition: "width .4s ease" }} />
         </div>
       </div>
 
-      {/* 垂直 Timeline */}
+      {/* Timeline */}
       <div>
         {PROGRESS_ITEMS.map((item, idx) => {
           const st = progress[item.id]?.status || "未開始";
@@ -58,7 +135,6 @@ export function ProgressTab() {
 
           return (
             <div key={item.id} style={{ display: "flex" }}>
-              {/* 左側：圓圈 + 連線 */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 36, flexShrink: 0 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: "50%",
@@ -66,22 +142,15 @@ export function ProgressTab() {
                   border: `2px solid ${isDone ? GREEN : isActive ? GREEN : "#DDDDD8"}`,
                   color: isDone ? "#fff" : isActive ? GREEN : "#BBB",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 700, flexShrink: 0,
-                  transition: "all .2s",
-                  marginTop: 4,
+                  fontSize: 11, fontWeight: 700, flexShrink: 0, transition: "all .2s", marginTop: 4,
                 }}>
                   {isDone ? "✓" : idx + 1}
                 </div>
                 {!isLast && (
-                  <div style={{
-                    width: 2, flex: 1, minHeight: 20,
-                    background: isDone ? GREEN : "#EDEDEA",
-                    margin: "4px 0 0",
-                  }} />
+                  <div style={{ width: 2, flex: 1, minHeight: 20, background: isDone ? GREEN : "#EDEDEA", margin: "4px 0 0" }} />
                 )}
               </div>
 
-              {/* 右側：內容卡片 */}
               <div style={{ flex: 1, paddingLeft: 12, paddingBottom: isLast ? 4 : 16 }}>
                 <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 10, padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>

@@ -6,7 +6,7 @@ import {
 import { db } from "../firebase";
 import { SPECIALTIES, ROLE_COLORS, GREEN, GREEN_LIGHT, inp } from "../shared";
 
-export function MembersTab() {
+export function MembersTab({ onError }) {
   const [members, setMembers] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: "", role: "技師", phone: "", email: "", specialty: [], note: "" });
@@ -39,10 +39,16 @@ export function MembersTab() {
       if (editId) await updateDoc(doc(db, "members", editId), { ...form, updatedAt: serverTimestamp() });
       else await addDoc(collection(db, "members"), { ...form, createdAt: serverTimestamp() });
       setFormOpen(false); setEditId(null);
+    } catch {
+      onError("儲存失敗，請重試");
     } finally { setSaving(false); }
   };
 
-  const del = async id => { if (confirm("確定刪除此成員？")) await deleteDoc(doc(db, "members", id)); };
+  const del = async id => {
+    if (!confirm("確定刪除此成員？")) return;
+    try { await deleteDoc(doc(db, "members", id)); }
+    catch { onError("刪除失敗，請重試"); }
+  };
 
   return (
     <div>

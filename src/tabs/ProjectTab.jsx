@@ -3,7 +3,7 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { PROJECT_FIELDS, GREEN, inp } from "../shared";
 
-export function ProjectTab() {
+export function ProjectTab({ onError }) {
   const [project, setProject] = useState(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
@@ -19,6 +19,8 @@ export function ProjectTab() {
     try {
       await setDoc(doc(db, "project", "main"), { ...form, updatedAt: serverTimestamp() });
       setEditing(false);
+    } catch {
+      onError("儲存失敗，請重試");
     } finally { setSaving(false); }
   };
 
