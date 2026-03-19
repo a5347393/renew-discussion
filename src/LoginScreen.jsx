@@ -29,76 +29,81 @@ export function LoginScreen() {
     <div style={{
       fontFamily: '"Noto Sans TC", -apple-system, system-ui, sans-serif',
       maxWidth: 720, margin: "0 auto", minHeight: "100vh",
-      background: "#F5F5F3", display: "flex", flexDirection: "column",
+      background: "#F2F1EE", display: "flex", flexDirection: "column",
     }}>
-      {/* Header */}
-      <div style={{ background: `linear-gradient(145deg, ${GREEN} 0%, #0e8059 100%)`, padding: "36px 24px 40px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 3, color: "#6FD4AA", marginBottom: 6 }}>
+      {/* Header — same gradient as main app */}
+      <div style={{
+        background: "linear-gradient(150deg, #0d8a60 0%, #0A6647 45%, #074d34 100%)",
+        padding: "40px 24px 48px",
+        position: "relative", overflow: "hidden",
+      }}>
+        <div style={{ position: "absolute", top: -40, right: -30, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.09) 0%, transparent 65%)", pointerEvents: "none" }} />
+
+        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 4, color: "rgba(255,255,255,0.38)", marginBottom: 8, textTransform: "uppercase" }}>
+          Project Management
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", letterSpacing: -0.4, lineHeight: 1.15, marginBottom: 6 }}>
           老宅延壽機能復新計畫
         </div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginBottom: 4 }}>專案管理後台</div>
-        <div style={{ fontSize: 12, color: "#A8E6CC" }}>業主・技師・設計師 共用協作平台</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>業主・技師・設計師 共用協作平台</div>
       </div>
 
+      {/* Login card */}
       <div style={{ flex: 1, display: "flex", justifyContent: "center", padding: "36px 24px 48px" }}>
         <form onSubmit={login} style={{ width: "100%", maxWidth: 360 }}>
           <div className="anim-form-open" style={{
             background: "#fff", borderRadius: 16, padding: "28px 24px",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.09)", border: "1px solid #EDEDEA",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.08)",
+            border: "1px solid #E8E8E4",
           }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 24 }}>
-              登入
-              <div style={{ width: 28, height: 3, background: GREEN, borderRadius: 2, marginTop: 6 }} />
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111", letterSpacing: -0.2 }}>登入</div>
+              <div style={{ width: 24, height: 2.5, background: GREEN, borderRadius: 2, marginTop: 7 }} />
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 5, fontWeight: 600, letterSpacing: 0.5 }}>Email</div>
-              <input
-                type="email" value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                style={inp} autoComplete="email" autoFocus
-              />
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 5, fontWeight: 600, letterSpacing: 0.4 }}>Email</div>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com" style={inp} autoComplete="email" autoFocus />
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 5, fontWeight: 600, letterSpacing: 0.5 }}>密碼</div>
-              <input
-                type="password" value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={inp} autoComplete="current-password"
-              />
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 5, fontWeight: 600, letterSpacing: 0.4 }}>密碼</div>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••" style={inp} autoComplete="current-password" />
             </div>
 
             {error && (
               <div className="anim-fade-in" style={{
-                fontSize: 12, color: "#A32D2D", background: "#FCEBEB",
-                border: "1px solid #A32D2D33", borderRadius: 8,
-                padding: "9px 12px", marginBottom: 16,
+                fontSize: 12, color: "#A32D2D", background: "#FFF4F4",
+                border: "1px solid rgba(163,45,45,0.15)", borderRadius: 8,
+                padding: "9px 12px", marginBottom: 16, lineHeight: 1.5,
               }}>
                 {error}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || !canSubmit}
-              className="btn-press"
+            <button type="submit" disabled={loading || !canSubmit} className="btn-press"
               style={{
                 width: "100%", padding: "12px", borderRadius: 10, border: "none",
-                background: canSubmit ? GREEN : "#ccc",
+                background: canSubmit
+                  ? "linear-gradient(135deg, #0d8a60, #0A6647)"
+                  : "#D4D4D0",
                 color: "#fff", fontSize: 14, fontWeight: 700,
                 cursor: canSubmit ? "pointer" : "default",
-                fontFamily: "inherit", transition: "background .15s",
+                fontFamily: "inherit",
+                boxShadow: canSubmit ? "0 2px 8px rgba(10,102,71,0.3)" : "none",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                transition: "box-shadow .15s, background .15s",
               }}>
-              {loading && <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spinnerRotate .7s linear infinite" }} />}
+              {loading && (
+                <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spinnerRotate .7s linear infinite" }} />
+              )}
               {loading ? "登入中…" : "登入"}
             </button>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 18, fontSize: 11, color: "#aaa", lineHeight: 1.6 }}>
+          <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: "#aaa", lineHeight: 1.7 }}>
             帳號由管理員設定<br />如需協助請聯繫業主
           </div>
         </form>

@@ -2,6 +2,16 @@
    Renew Discussion — Global Styles & Animations
    ============================================================ */
 
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #F2F1EE;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* ---------- Keyframes ---------- */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
@@ -14,8 +24,8 @@
 }
 
 @keyframes slideUpToast {
-  from { opacity: 0; transform: translate(-50%, 16px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translate(-50%, 18px) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 @keyframes skeletonShimmer {
@@ -32,11 +42,11 @@
 }
 
 @keyframes replySlideIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ---------- Animation utility classes ---------- */
+/* ---------- Animation classes ---------- */
 .anim-fade-in {
   animation: fadeInUp 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
@@ -53,69 +63,71 @@
   animation: replySlideIn 0.18s ease both;
 }
 
-/* Tab content: re-triggers on key change */
 .tab-pane {
   animation: fadeInUp 0.2s ease both;
 }
 
-/* ---------- Loading skeleton ---------- */
+/* ---------- Skeleton loading ---------- */
 .skeleton {
   background: linear-gradient(
     90deg,
-    #f0f0ee 25%,
-    #e4e4e0 50%,
-    #f0f0ee 75%
+    #ededea 25%,
+    #e3e2de 50%,
+    #ededea 75%
   );
   background-size: 200% 100%;
   animation: skeletonShimmer 1.5s ease infinite;
   border-radius: 6px;
 }
 
-/* ---------- Card hover ---------- */
+/* ---------- Card hover — multi-layer shadow ---------- */
 .card-hover {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  cursor: default;
+  transition: box-shadow 0.22s ease, transform 0.22s ease, border-color 0.22s ease;
 }
 .card-hover:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09) !important;
-  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 8px 20px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-1.5px);
+  border-color: #D8D8D4 !important;
 }
 
 /* ---------- Button micro-interaction ---------- */
 .btn-press {
-  transition: transform 0.08s ease, opacity 0.08s ease, background 0.15s ease !important;
+  transition: transform 0.08s ease, opacity 0.08s ease !important;
 }
 .btn-press:active {
-  transform: scale(0.95) !important;
-  opacity: 0.82;
+  transform: scale(0.94) !important;
+  opacity: 0.8;
 }
 
-/* ---------- Photo thumbnail hover ---------- */
+/* ---------- Photo hover ---------- */
 .photo-wrap {
   overflow: hidden;
   border-radius: 8px;
   display: block;
   line-height: 0;
-  border: 1px solid #EDEDEA;
+  border: 1px solid #E4E4E0;
 }
 .photo-wrap img {
   width: 72px;
   height: 72px;
   object-fit: cover;
   display: block;
-  transition: transform 0.22s ease;
+  transition: transform 0.25s ease;
 }
 .photo-wrap:hover img {
-  transform: scale(1.08);
+  transform: scale(1.1);
 }
 
-/* ---------- Input focus ring ---------- */
+/* ---------- Input focus ---------- */
 input:focus,
 textarea:focus,
 select:focus {
   outline: none !important;
   border-color: #0A6647 !important;
   box-shadow: 0 0 0 3px rgba(10, 102, 71, 0.12) !important;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 /* ---------- Spinner ---------- */
@@ -128,9 +140,9 @@ select:focus {
   animation: spinnerRotate 0.7s linear infinite;
 }
 
-/* ---------- Progress bar animation ---------- */
+/* ---------- Progress bar ---------- */
 .progress-bar-fill {
-  animation: progressBarFill 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: progressBarFill 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
 /* ---------- Staggered card entrance ---------- */
@@ -138,11 +150,17 @@ select:focus {
 .card-stagger > *:nth-child(2) { animation-delay: 0.05s; }
 .card-stagger > *:nth-child(3) { animation-delay: 0.08s; }
 .card-stagger > *:nth-child(4) { animation-delay: 0.11s; }
-.card-stagger > *:nth-child(5) { animation-delay: 0.14s; }
-.card-stagger > *:nth-child(n+6) { animation-delay: 0.16s; }
+.card-stagger > *:nth-child(5) { animation-delay: 0.13s; }
+.card-stagger > *:nth-child(n+6) { animation-delay: 0.15s; }
 
 /* ---------- Scrollbar polish ---------- */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d4d0; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #b0b0aa; }
+::-webkit-scrollbar-thumb { background: #ccccc8; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #aaaaа6; }
+
+/* ---------- Selection highlight ---------- */
+::selection {
+  background: rgba(10, 102, 71, 0.15);
+  color: #074d34;
+}
