@@ -214,6 +214,34 @@ select:focus {
   padding: 20px 16px 44px;
 }
 
+/* ---------- Print (PDF Export) ---------- */
+@media print {
+  #root { display: none !important; }
+  .pdf-overlay {
+    position: static !important;
+    background: transparent !important;
+    display: block !important;
+    inset: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    flex-direction: column;
+  }
+  .pdf-overlay-inner {
+    overflow: visible !important;
+    padding: 0 !important;
+    display: block !important;
+    flex: none !important;
+  }
+  .pdf-overlay-inner > div {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 10mm 15mm !important;
+    max-width: 100% !important;
+  }
+  .pdf-no-print { display: none !important; }
+  @page { margin: 10mm; }
+}
+
 /* Small phone: stack header, single-column grids */
 @media (max-width: 420px) {
   .header-meta {

@@ -8,6 +8,7 @@ import {
   STAGES, TAGS, TAG_STYLES, GREEN, GREEN_LIGHT,
   inp, today, TagPill, Avatar, relativeTime, useConfirm,
 } from "../shared";
+import { PdfExportButton } from "../PdfExport";
 
 const CLOUDINARY_CLOUD_NAME = "dkyp5jocn";
 const CLOUDINARY_UPLOAD_PRESET = "ml_default";
@@ -427,7 +428,19 @@ export function LogsTab({ role, onError }) {
                   const s = TAG_STYLES[t]; const on = form.tag === t;
                   return (
                     <button key={t} onClick={() => setForm(p => ({ ...p, tag: t }))} className="btn-press"
-                      style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, border: `1.5px solid ${on ? s.color : "#e8e8e4"}`, background: on ? s.bg : "#fff", color: on ? s.color : "#888", cursor: "pointer", fontFamily: "inherit", fontWeight: on ? 700 : 400 }}>
+                      style={{
+                        fontSize: 11, padding: on ? "3px 9px 3px 6px" : "3px 9px", borderRadius: 20,
+                        border: `1.5px solid ${on ? s.color : "#e0e0dc"}`,
+                        background: on ? s.bg : "#fafaf8", color: on ? s.color : "#999",
+                        cursor: "pointer", fontFamily: "inherit", fontWeight: on ? 700 : 400,
+                        display: "flex", alignItems: "center", gap: 4,
+                        transition: "border-color .15s, background .15s, color .15s",
+                      }}>
+                      {on && (
+                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                          <path d="M2 5.5l2.5 2.5L9 3" stroke={s.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
                       {t}
                     </button>
                   );
@@ -516,21 +529,60 @@ export function LogsTab({ role, onError }) {
             <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>{newCount} 則新訊息</span>
           )}
         </div>
-        {(filter !== "全部" || search) && (
-          <button onClick={() => { setFilter("全部"); setSearch(""); }} className="btn-press"
-            style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>
-            清除篩選
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {(filter !== "全部" || search) && (
+            <button onClick={() => { setFilter("全部"); setSearch(""); }} className="btn-press"
+              style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>
+              清除篩選
+            </button>
+          )}
+          {logs.length > 0 && <PdfExportButton logs={logs} />}
+        </div>
       </div>
 
       {/* 載入 skeleton */}
       {loading && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
 
       {!loading && baseFiltered.length === 0 && (
-        <div style={{ textAlign: "center", padding: 48, color: "#bbb", fontSize: 13 }}>
-          {search ? `找不到「${search}」相關記錄` : "尚無討論記錄"}
-        </div>
+        search ? (
+          /* 搜尋無結果 */
+          <div className="anim-fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 24px", gap: 10 }}>
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+              <circle cx="22" cy="22" r="14" stroke="#D8D8D4" strokeWidth="1.5" fill="#F5F5F2" />
+              <line x1="32" y1="32" x2="46" y2="46" stroke="#D0D0CC" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="17" y1="22" x2="27" y2="22" stroke="#C4C4C0" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#555" }}>找不到相關記錄</div>
+            <div style={{ fontSize: 12, color: "#aaa" }}>試試不同的關鍵字</div>
+            <button onClick={() => { setSearch(""); setFilter("全部"); }} className="btn-press"
+              style={{ fontSize: 12, padding: "6px 18px", borderRadius: 20, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>
+              清除搜尋
+            </button>
+          </div>
+        ) : (
+          /* 無記錄 */
+          <div className="anim-fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 12 }}>
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <rect x="14" y="10" width="36" height="46" rx="5" fill="#F5F5F2" stroke="#D8D8D4" strokeWidth="1.5" />
+              <rect x="23" y="5" width="18" height="9" rx="3.5" fill="#E0DFD9" />
+              <line x1="22" y1="28" x2="42" y2="28" stroke="#C8C8C4" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="22" y1="36" x2="38" y2="36" stroke="#C8C8C4" strokeWidth="1.5" strokeLinecap="round" />
+              <line x1="22" y1="44" x2="34" y2="44" stroke="#C8C8C4" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="47" cy="47" r="11" fill="#0A6647" />
+              <path d="M43 47l3 3 5-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#444" }}>尚無討論記錄</div>
+            <div style={{ fontSize: 12, color: "#aaa", textAlign: "center", lineHeight: 1.7 }}>
+              記錄第一筆討論，讓業主、技師、設計師<br />都能即時掌握工程進度
+            </div>
+            {!formOpen && (
+              <button onClick={() => setFormOpen(true)} className="btn-press"
+                style={{ fontSize: 13, padding: "9px 24px", borderRadius: 20, border: "none", background: GREEN, color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, marginTop: 4, boxShadow: "0 2px 10px rgba(10,102,71,0.3)" }}>
+                + 新增第一筆記錄
+              </button>
+            )}
+          </div>
+        )
       )}
 
       {/* 釘選區塊 */}

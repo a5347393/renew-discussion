@@ -88,13 +88,26 @@ export function MembersTab({ onError }) {
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>專長</div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>專長</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {SPECIALTIES.map(s => {
                 const on = form.specialty.includes(s);
                 return (
-                  <button key={s} onClick={() => toggleSpec(s)}
-                    style={{ fontSize: 11, padding: "4px 10px", borderRadius: 20, border: `1.5px solid ${on ? GREEN : "#e8e8e4"}`, background: on ? GREEN_LIGHT : "#fff", color: on ? GREEN : "#888", cursor: "pointer", fontFamily: "inherit", fontWeight: on ? 700 : 400 }}>
+                  <button key={s} onClick={() => toggleSpec(s)} className="btn-press"
+                    style={{
+                      fontSize: 11, padding: on ? "4px 10px 4px 7px" : "4px 10px", borderRadius: 20,
+                      border: `1.5px solid ${on ? GREEN : "#e0e0dc"}`,
+                      background: on ? GREEN_LIGHT : "#fafaf8",
+                      color: on ? GREEN : "#999",
+                      cursor: "pointer", fontFamily: "inherit", fontWeight: on ? 700 : 400,
+                      display: "flex", alignItems: "center", gap: 4,
+                      transition: "border-color .15s, background .15s, color .15s",
+                    }}>
+                    {on && (
+                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                        <path d="M2 5.5l2.5 2.5L9 3" stroke={GREEN} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
                     {s}
                   </button>
                 );
@@ -112,7 +125,24 @@ export function MembersTab({ onError }) {
         </div>
       )}
 
-      {members.length === 0 && !formOpen && <div style={{ textAlign: "center", padding: 40, color: "#bbb", fontSize: 13 }}>尚無成員</div>}
+      {members.length === 0 && !formOpen && (
+        <div className="anim-fade-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 12 }}>
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+            <circle cx="24" cy="20" r="11" fill="#F5F5F2" stroke="#D8D8D4" strokeWidth="1.5" />
+            <path d="M5 54c0-10.5 8.5-17 19-17s19 6.5 19 17" stroke="#D8D8D4" strokeWidth="1.5" fill="#F5F5F2" strokeLinecap="round" />
+            <circle cx="42" cy="22" r="9" fill="#ECEAE4" stroke="#CCCCC8" strokeWidth="1.5" />
+            <path d="M27 54c2-8 8.5-14 15-14s13 6 15 14" stroke="#CCCCC8" strokeWidth="1.5" fill="#ECEAE4" strokeLinecap="round" />
+          </svg>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#444" }}>尚未新增成員</div>
+          <div style={{ fontSize: 12, color: "#aaa", textAlign: "center", lineHeight: 1.7 }}>
+            新增業主、技師、設計師<br />記錄討論時可快速選取發言人
+          </div>
+          <button onClick={() => openForm()} className="btn-press"
+            style={{ fontSize: 13, padding: "9px 24px", borderRadius: 20, border: "none", background: GREEN, color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, marginTop: 4, boxShadow: "0 2px 10px rgba(10,102,71,0.3)" }}>
+            + 新增第一位成員
+          </button>
+        </div>
+      )}
 
       {members.map(m => {
         const rc = ROLE_COLORS[m.role] || ROLE_COLORS["技師"];
