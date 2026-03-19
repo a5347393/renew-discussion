@@ -36,7 +36,7 @@ export function ProjectTab({ onError }) {
       </div>
 
       {editing ? (
-        <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+        <div className="anim-form-open" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, boxShadow: "0 4px 16px rgba(0,0,0,0.09)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px", marginBottom: 14 }}>
             {PROJECT_FIELDS.map(f => (
               <div key={f.key} style={{ gridColumn: f.full ? "1/-1" : undefined }}>
@@ -60,7 +60,7 @@ export function ProjectTab({ onError }) {
       ) : project ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {PROJECT_FIELDS.filter(f => project[f.key]).map(f => (
-            <div key={f.key} style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 10, padding: "13px 14px", gridColumn: f.full ? "1/-1" : undefined, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div key={f.key} className="card-hover anim-fade-in" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 10, padding: "13px 14px", gridColumn: f.full ? "1/-1" : undefined, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{f.label}</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{project[f.key]}</div>
             </div>

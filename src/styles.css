@@ -1,0 +1,148 @@
+/* ============================================================
+   Renew Discussion — Global Styles & Animations
+   ============================================================ */
+
+/* ---------- Keyframes ---------- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes slideUpToast {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes skeletonShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes progressBarFill {
+  from { width: 0 !important; }
+}
+
+@keyframes replySlideIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Animation utility classes ---------- */
+.anim-fade-in {
+  animation: fadeInUp 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.anim-form-open {
+  animation: fadeInScale 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.anim-toast {
+  animation: slideUpToast 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.anim-reply {
+  animation: replySlideIn 0.18s ease both;
+}
+
+/* Tab content: re-triggers on key change */
+.tab-pane {
+  animation: fadeInUp 0.2s ease both;
+}
+
+/* ---------- Loading skeleton ---------- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0ee 25%,
+    #e4e4e0 50%,
+    #f0f0ee 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease infinite;
+  border-radius: 6px;
+}
+
+/* ---------- Card hover ---------- */
+.card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: default;
+}
+.card-hover:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09) !important;
+  transform: translateY(-1px);
+}
+
+/* ---------- Button micro-interaction ---------- */
+.btn-press {
+  transition: transform 0.08s ease, opacity 0.08s ease, background 0.15s ease !important;
+}
+.btn-press:active {
+  transform: scale(0.95) !important;
+  opacity: 0.82;
+}
+
+/* ---------- Photo thumbnail hover ---------- */
+.photo-wrap {
+  overflow: hidden;
+  border-radius: 8px;
+  display: block;
+  line-height: 0;
+  border: 1px solid #EDEDEA;
+}
+.photo-wrap img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.22s ease;
+}
+.photo-wrap:hover img {
+  transform: scale(1.08);
+}
+
+/* ---------- Input focus ring ---------- */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  border-color: #0A6647 !important;
+  box-shadow: 0 0 0 3px rgba(10, 102, 71, 0.12) !important;
+}
+
+/* ---------- Spinner ---------- */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgba(10, 102, 71, 0.15);
+  border-top-color: #0A6647;
+  border-radius: 50%;
+  animation: spinnerRotate 0.7s linear infinite;
+}
+
+/* ---------- Progress bar animation ---------- */
+.progress-bar-fill {
+  animation: progressBarFill 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ---------- Staggered card entrance ---------- */
+.card-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.card-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.card-stagger > *:nth-child(3) { animation-delay: 0.08s; }
+.card-stagger > *:nth-child(4) { animation-delay: 0.11s; }
+.card-stagger > *:nth-child(5) { animation-delay: 0.14s; }
+.card-stagger > *:nth-child(n+6) { animation-delay: 0.16s; }
+
+/* ---------- Scrollbar polish ---------- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4d0; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #b0b0aa; }

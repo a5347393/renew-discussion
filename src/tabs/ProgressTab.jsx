@@ -102,23 +102,24 @@ ${projectData ? `<div class="section-title">專案資料</div>${projectInfo}` : 
   };
 
   const doneCount = PROGRESS_ITEMS.filter(i => progress[i.id]?.status === "已完成").length;
+  const pct = Math.round((doneCount / PROGRESS_ITEMS.length) * 100);
 
   return (
     <div>
       {/* 進度摘要 */}
-      <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: "16px 18px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#444" }}>補助申請進度</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 13, color: GREEN, fontWeight: 700 }}>{doneCount} / {PROGRESS_ITEMS.length} 完成</span>
-            <button onClick={printReport}
-              style={{ fontSize: 11, padding: "4px 12px", borderRadius: 20, border: `1.5px solid ${GREEN}`, background: "transparent", color: GREEN, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
-              列印報告
-            </button>
+      <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: "16px 18px", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#444" }}>補助申請進度</span>
+            <span style={{ fontSize: 12, color: GREEN, fontWeight: 700, marginLeft: 12 }}>{doneCount} / {PROGRESS_ITEMS.length} 完成 ({pct}%)</span>
           </div>
+          <button onClick={printReport} className="btn-press"
+            style={{ fontSize: 11, padding: "5px 14px", borderRadius: 20, border: `1.5px solid ${GREEN}`, background: "transparent", color: GREEN, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>
+            列印報告
+          </button>
         </div>
-        <div style={{ height: 6, background: "#F0EFE8", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${(doneCount / PROGRESS_ITEMS.length) * 100}%`, background: GREEN, borderRadius: 4, transition: "width .4s ease" }} />
+        <div style={{ height: 7, background: "#F0EFE8", borderRadius: 4, overflow: "hidden" }}>
+          <div className="progress-bar-fill" style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, #0A6647, #1A9B6E)`, borderRadius: 4, transition: "width .6s cubic-bezier(.25,.46,.45,.94)" }} />
         </div>
       </div>
 
@@ -135,28 +136,31 @@ ${projectData ? `<div class="section-title">專案資料</div>${projectInfo}` : 
 
           return (
             <div key={item.id} style={{ display: "flex" }}>
+              {/* 時間軸 */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 36, flexShrink: 0 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
+                  width: 30, height: 30, borderRadius: "50%",
                   background: isDone ? GREEN : isActive ? GREEN_LIGHT : "#F5F5F3",
                   border: `2px solid ${isDone ? GREEN : isActive ? GREEN : "#DDDDD8"}`,
                   color: isDone ? "#fff" : isActive ? GREEN : "#BBB",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 700, flexShrink: 0, transition: "all .2s", marginTop: 4,
+                  fontSize: 11, fontWeight: 700, flexShrink: 0,
+                  transition: "all .3s ease", marginTop: 4,
+                  boxShadow: isDone ? "0 2px 8px rgba(10,102,71,0.25)" : "none",
                 }}>
                   {isDone ? "✓" : idx + 1}
                 </div>
                 {!isLast && (
-                  <div style={{ width: 2, flex: 1, minHeight: 20, background: isDone ? GREEN : "#EDEDEA", margin: "4px 0 0" }} />
+                  <div style={{ width: 2, flex: 1, minHeight: 20, background: isDone ? `linear-gradient(to bottom, ${GREEN}, #d4d4d0)` : "#EDEDEA", margin: "4px 0 0", transition: "background .3s" }} />
                 )}
               </div>
 
               <div style={{ flex: 1, paddingLeft: 12, paddingBottom: isLast ? 4 : 16 }}>
-                <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 10, padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                <div className="card-hover" style={{ background: "#fff", border: `1px solid ${isDone ? "#C8ECDF" : "#EDEDEA"}`, borderRadius: 10, padding: "12px 14px", boxShadow: isDone ? "0 1px 4px rgba(10,102,71,0.08)" : "0 1px 3px rgba(0,0,0,0.04)", transition: "border-color .2s" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#111", flex: 1 }}>{item.label}</span>
-                    <select value={st} onChange={e => update(item.id, "status", e.target.value)}
-                      style={{ fontSize: 11, padding: "3px 8px", borderRadius: 20, border: `1.5px solid ${sc.color}33`, background: sc.bg, color: sc.color, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, outline: "none" }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isDone ? GREEN : "#111", flex: 1, transition: "color .2s" }}>{item.label}</span>
+                    <select value={st} onChange={e => update(item.id, "status", e.target.value)} className="btn-press"
+                      style={{ fontSize: 11, padding: "3px 8px", borderRadius: 20, border: `1.5px solid ${sc.color}33`, background: sc.bg, color: sc.color, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, outline: "none", transition: "all .15s" }}>
                       {STATUS_OPTS.map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
@@ -172,7 +176,7 @@ ${projectData ? `<div class="section-title">專案資料</div>${projectInfo}` : 
       </div>
 
       {toast && (
-        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: GREEN, color: "#fff", padding: "8px 20px", borderRadius: 10, fontSize: 13, fontWeight: 700, zIndex: 999 }}>
+        <div className="anim-toast" style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: GREEN, color: "#fff", padding: "9px 22px", borderRadius: 12, fontSize: 13, fontWeight: 700, zIndex: 999, boxShadow: "0 4px 16px rgba(10,102,71,0.3)" }}>
           {toast}
         </div>
       )}

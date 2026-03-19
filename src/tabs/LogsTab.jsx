@@ -4,15 +4,33 @@ import {
   doc, onSnapshot, orderBy, query, serverTimestamp, arrayUnion,
 } from "firebase/firestore";
 import { db } from "../firebase";
-
-// ── Cloudinary 設定（免費帳號，填入你的值）──────────────────────
-const CLOUDINARY_CLOUD_NAME = "dkyp5jocn";
-const CLOUDINARY_UPLOAD_PRESET = "ml_default";
-// ────────────────────────────────────────────────────────────────
 import {
   STAGES, TAGS, TAG_STYLES, GREEN, GREEN_LIGHT,
   inp, today, TagPill, Avatar, relativeTime,
 } from "../shared";
+
+const CLOUDINARY_CLOUD_NAME = "dkyp5jocn";
+const CLOUDINARY_UPLOAD_PRESET = "ml_default";
+
+/* ── Skeleton card for loading state ── */
+function SkeletonCard() {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: "4px solid #e8e8e4", borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
+        <div className="skeleton" style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div className="skeleton" style={{ height: 12, width: "40%", marginBottom: 8 }} />
+          <div className="skeleton" style={{ height: 10, width: "25%" }} />
+        </div>
+      </div>
+      <div style={{ paddingLeft: 44 }}>
+        <div className="skeleton" style={{ height: 11, width: "90%", marginBottom: 6 }} />
+        <div className="skeleton" style={{ height: 11, width: "75%", marginBottom: 6 }} />
+        <div className="skeleton" style={{ height: 11, width: "55%" }} />
+      </div>
+    </div>
+  );
+}
 
 export function LogsTab({ role, onError }) {
   const [logs, setLogs] = useState([]);
@@ -24,7 +42,7 @@ export function LogsTab({ role, onError }) {
   const [form, setForm] = useState({ date: today(), stage: "初步評估", author: role, tag: "其他", content: "" });
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [photos, setPhotos] = useState([]); // File | string mixed array
+  const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const [replyingId, setReplyingId] = useState(null);
@@ -68,13 +86,12 @@ export function LogsTab({ role, onError }) {
     setFormOpen(true);
   };
 
+  const closeForm = () => { setFormOpen(false); setEditId(null); setPhotos([]); };
+
   const handlePhotoSelect = (e) => {
-    const files = Array.from(e.target.files);
-    setPhotos(prev => [...prev, ...files]);
+    setPhotos(prev => [...prev, ...Array.from(e.target.files)]);
     e.target.value = "";
   };
-
-  const removePhoto = (index) => setPhotos(prev => prev.filter((_, i) => i !== index));
 
   const getPhotoURL = (photo) =>
     typeof photo === "string" ? photo : URL.createObjectURL(photo);
@@ -85,12 +102,11 @@ export function LogsTab({ role, onError }) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-      fd.append("eager", "w_1200,c_limit,q_auto:good"); // 自動壓縮
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
         { method: "POST", body: fd }
       );
-      if (!res.ok) throw new Error("圖片上傳失敗");
+      if (!res.ok) throw new Error("上傳失敗");
       const data = await res.json();
       urls.push(data.secure_url);
     }
@@ -107,42 +123,32 @@ export function LogsTab({ role, onError }) {
       const newUrls = newFiles.length > 0 ? await uploadPhotos(newFiles) : [];
       setUploading(false);
       const allPhotos = [...existingUrls, ...newUrls];
-
       if (editId) {
         await updateDoc(doc(db, "logs", editId), { ...form, photos: allPhotos, updatedAt: serverTimestamp() });
       } else {
-        await addDoc(collection(db, "logs"), {
-          ...form, role, photos: allPhotos, replies: [], createdAt: serverTimestamp(),
-        });
+        await addDoc(collection(db, "logs"), { ...form, role, photos: allPhotos, replies: [], createdAt: serverTimestamp() });
       }
-      setFormOpen(false); setEditId(null); setPhotos([]);
+      closeForm();
     } catch {
       onError("儲存失敗，請確認網路連線後重試");
     } finally { setSaving(false); setUploading(false); }
   };
 
   const del = async (id) => {
-    if (!confirm("確定刪除？")) return;
-    try {
-      await deleteDoc(doc(db, "logs", id));
-    } catch {
-      onError("刪除失敗，請重試");
-    }
+    if (!confirm("確定刪除此記錄？")) return;
+    try { await deleteDoc(doc(db, "logs", id)); }
+    catch { onError("刪除失敗，請重試"); }
   };
 
   const submitReply = async (logId) => {
     if (!replyContent.trim()) return;
     setReplySaving(true);
     try {
-      const reply = {
-        author: defaultAuthor, content: replyContent.trim(),
-        date: today(), createdAt: new Date().toISOString(),
-      };
+      const reply = { author: defaultAuthor, content: replyContent.trim(), date: today(), createdAt: new Date().toISOString() };
       await updateDoc(doc(db, "logs", logId), { replies: arrayUnion(reply) });
       setReplyingId(null); setReplyContent("");
-    } catch {
-      onError("回復失敗，請重試");
-    } finally { setReplySaving(false); }
+    } catch { onError("回復失敗，請重試"); }
+    finally { setReplySaving(false); }
   };
 
   const saveReplyEdit = async (log) => {
@@ -154,36 +160,54 @@ export function LogsTab({ role, onError }) {
       );
       await updateDoc(doc(db, "logs", logId), { replies: newReplies });
       setEditingReply(null); setEditingReplyContent("");
-    } catch {
-      onError("更新失敗，請重試");
-    }
+    } catch { onError("更新失敗，請重試"); }
+  };
+
+  const deleteReply = async (log, index) => {
+    if (!confirm("確定刪除此回復？")) return;
+    try {
+      const newReplies = log.replies.filter((_, i) => i !== index);
+      await updateDoc(doc(db, "logs", log.id), { replies: newReplies });
+    } catch { onError("刪除回復失敗，請重試"); }
+  };
+
+  const handleContentKeyDown = (e, action) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); action(); }
   };
 
   const renderAuthorField = () => {
-    if (editId) {
-      return <input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} style={inp} />;
-    }
-    if (roleMembers.length > 1) {
-      return (
-        <select value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} style={{ ...inp, cursor: "pointer" }}>
-          {roleMembers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-        </select>
-      );
-    }
+    if (editId) return <input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} style={inp} />;
+    if (roleMembers.length > 1) return (
+      <select value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} style={{ ...inp, cursor: "pointer" }}>
+        {roleMembers.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
+      </select>
+    );
     return <div style={{ ...inp, background: "#f5f5f3", color: "#444", display: "flex", alignItems: "center" }}>{form.author}</div>;
   };
 
   const stageCounts = STAGES.reduce((a, s) => ({ ...a, [s]: logs.filter(l => l.stage === s).length }), {});
   const filtered = logs.filter(l =>
     (filter === "全部" || l.stage === filter) &&
-    (!search || l.content?.includes(search) || l.author?.includes(search))
+    (!search || l.content?.includes(search) || l.author?.includes(search) ||
+      l.replies?.some(r => r.content?.includes(search)))
+  );
+
+  const smBtn = (label, onClick, opts = {}) => (
+    <button onClick={onClick} className="btn-press" style={{
+      fontSize: 11, padding: "4px 11px", borderRadius: 6,
+      border: `1px solid ${opts.danger ? "#A32D2D33" : "#e8e8e4"}`,
+      background: opts.primary ? GREEN : opts.danger ? "#FFF0F0" : "#f8f8f6",
+      color: opts.primary ? "#fff" : opts.danger ? "#A32D2D" : "#555",
+      cursor: "pointer", fontFamily: "inherit", fontWeight: opts.primary ? 700 : 400,
+      ...opts.style,
+    }}>{label}</button>
   );
 
   return (
     <div>
-      {/* 表單 */}
+      {/* 新增/編輯表單 */}
       {formOpen && (
-        <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, marginBottom: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+        <div className="anim-form-open" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, marginBottom: 18, boxShadow: "0 4px 16px rgba(0,0,0,0.09)" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: GREEN, letterSpacing: 2, marginBottom: 14 }}>
             {editId ? "編輯記錄" : "新增討論記錄"}
           </div>
@@ -208,7 +232,7 @@ export function LogsTab({ role, onError }) {
                 {TAGS.map(t => {
                   const s = TAG_STYLES[t]; const on = form.tag === t;
                   return (
-                    <button key={t} onClick={() => setForm(p => ({ ...p, tag: t }))}
+                    <button key={t} onClick={() => setForm(p => ({ ...p, tag: t }))} className="btn-press"
                       style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, border: `1.5px solid ${on ? s.color : "#e8e8e4"}`, background: on ? s.bg : "#fff", color: on ? s.color : "#888", cursor: "pointer", fontFamily: "inherit", fontWeight: on ? 700 : 400 }}>
                       {t}
                     </button>
@@ -218,12 +242,12 @@ export function LogsTab({ role, onError }) {
             </div>
           </div>
 
-          {/* 內容 + 字數 */}
           <div style={{ position: "relative", marginBottom: 10 }}>
             <textarea
               value={form.content}
               onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
-              rows={4} placeholder="記錄討論重點、決定事項…"
+              onKeyDown={e => handleContentKeyDown(e, save)}
+              rows={4} placeholder="記錄討論重點、決定事項… (Ctrl+Enter 送出)"
               style={{ ...inp, resize: "vertical", lineHeight: 1.7, paddingBottom: 24 }}
             />
             <span style={{ position: "absolute", right: 10, bottom: 8, fontSize: 10, color: form.content.length > 400 ? "#A32D2D" : "#ccc" }}>
@@ -231,10 +255,10 @@ export function LogsTab({ role, onError }) {
             </span>
           </div>
 
-          {/* 照片附件 */}
+          {/* 照片 */}
           <div style={{ marginBottom: 14 }}>
             <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: "none" }} />
-            <button onClick={() => fileInputRef.current.click()}
+            <button onClick={() => fileInputRef.current.click()} className="btn-press"
               style={{ fontSize: 12, padding: "5px 13px", borderRadius: 20, border: "1.5px solid #e8e8e4", background: "#f8f8f6", color: "#555", cursor: "pointer", fontFamily: "inherit" }}>
               附加照片
             </button>
@@ -242,10 +266,9 @@ export function LogsTab({ role, onError }) {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                 {photos.map((photo, i) => (
                   <div key={i} style={{ position: "relative" }}>
-                    <img src={getPhotoURL(photo)} alt=""
-                      style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
-                    <button onClick={() => removePhoto(i)}
-                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#A32D2D", border: "none", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+                    <img src={getPhotoURL(photo)} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
+                    <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))} className="btn-press"
+                      style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#A32D2D", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
                       ×
                     </button>
                   </div>
@@ -255,11 +278,10 @@ export function LogsTab({ role, onError }) {
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => { setFormOpen(false); setEditId(null); setPhotos([]); }}
-              style={{ fontSize: 13, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={closeForm} className="btn-press" style={{ fontSize: 13, padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
               取消
             </button>
-            <button onClick={save} disabled={!form.content.trim() || saving}
+            <button onClick={save} disabled={!form.content.trim() || saving} className="btn-press"
               style={{ fontSize: 13, padding: "8px 20px", borderRadius: 8, border: "none", background: form.content.trim() ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
               {uploading ? "上傳照片中…" : saving ? "儲存中…" : editId ? "更新" : "儲存"}
             </button>
@@ -273,7 +295,7 @@ export function LogsTab({ role, onError }) {
           const cnt = s === "全部" ? logs.length : stageCounts[s];
           const active = filter === s; const has = s !== "全部" && cnt > 0;
           return (
-            <button key={s} onClick={() => setFilter(s)}
+            <button key={s} onClick={() => setFilter(s)} className="btn-press"
               style={{ fontSize: 11, padding: "4px 11px", borderRadius: 20, border: `1.5px solid ${active ? GREEN : has ? "#0A664433" : "#e8e8e4"}`, background: active ? GREEN : has ? GREEN_LIGHT : "#fff", color: active ? "#fff" : has ? GREEN : "#aaa", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0, fontWeight: active ? 700 : 400 }}>
               {s}{cnt > 0 ? ` (${cnt})` : ""}
             </button>
@@ -283,180 +305,169 @@ export function LogsTab({ role, onError }) {
 
       {/* 搜尋 */}
       <div style={{ position: "relative", marginBottom: 12 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜尋內容或發言人…" style={{ ...inp, paddingLeft: 34 }} />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => e.key === "Escape" && setSearch("")}
+          placeholder="搜尋內容、發言人或回復…" style={{ ...inp, paddingLeft: 34 }} />
         <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#bbb" }}>⌕</span>
-        {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#bbb" }}>×</button>}
+        {search && <button onClick={() => setSearch("")} className="btn-press" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#bbb" }}>×</button>}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: "#888" }}>{filter === "全部" ? `共 ${filtered.length} 筆` : `${filter} · ${filtered.length} 筆`}</span>
-        {(filter !== "全部" || search) && <button onClick={() => { setFilter("全部"); setSearch(""); }} style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>清除 ×</button>}
+        {(filter !== "全部" || search) && <button onClick={() => { setFilter("全部"); setSearch(""); }} className="btn-press" style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>清除篩選</button>}
       </div>
 
-      {loading && <div style={{ textAlign: "center", padding: 40, color: "#aaa" }}>載入中…</div>}
-      {!loading && filtered.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#bbb", fontSize: 13 }}>尚無記錄</div>}
+      {/* 載入 skeleton */}
+      {loading && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
+
+      {!loading && filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 48, color: "#bbb", fontSize: 13 }}>
+          {search ? `找不到「${search}」相關記錄` : "尚無討論記錄"}
+        </div>
+      )}
 
       {/* 討論卡片 */}
-      {filtered.map(log => {
-        const ts = TAG_STYLES[log.tag] || TAG_STYLES["其他"];
-        const replies = log.replies || [];
-        const hasReplies = replies.length > 0;
-        const isReplying = replyingId === log.id;
-        const authorRole = getAuthorRole(log);
+      <div className="card-stagger">
+        {filtered.map(log => {
+          const ts = TAG_STYLES[log.tag] || TAG_STYLES["其他"];
+          const replies = log.replies || [];
+          const hasReplies = replies.length > 0;
+          const isReplying = replyingId === log.id;
+          const authorRole = getAuthorRole(log);
 
-        return (
-          <div key={log.id} style={{
-            background: "#fff", border: "1px solid #EDEDEA",
-            borderLeft: `4px solid ${ts.color}`, borderRadius: 12,
-            padding: "14px 16px", marginBottom: 10,
-            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-          }}>
-            {/* 卡片頭部 */}
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-              <Avatar name={log.author} role={authorRole} size={34} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#222" }}>{log.author}</span>
-                  <TagPill tag={log.tag} />
-                  <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>{log.stage}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 11, color: "#bbb" }}>{relativeTime(log.date)}</span>
+          return (
+            <div key={log.id} className="card-hover anim-fade-in"
+              style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: `4px solid ${ts.color}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+
+              {/* 卡片頭部 */}
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+                <Avatar name={log.author} role={authorRole} size={34} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#222" }}>{log.author}</span>
+                    <TagPill tag={log.tag} />
+                    <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>{log.stage}</span>
+                    <span style={{ marginLeft: "auto", fontSize: 11, color: "#bbb" }}>
+                      {relativeTime(log.date)}
+                      {log.updatedAt && <span style={{ marginLeft: 4 }}>（已編輯）</span>}
+                    </span>
+                  </div>
+                  {hasReplies && (
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>{replies.length} 則回復</div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* 正文 */}
-            <div style={{ fontSize: 13, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", paddingLeft: 44 }}>
-              {log.content}
-            </div>
-
-            {/* 照片縮圖 */}
-            {log.photos?.length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
-                {log.photos.map((url, i) => {
-                  // Cloudinary URL 縮圖轉換（72×72 裁切）
-                  const thumb = url.includes("/upload/")
-                    ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
-                    : url;
-                  return (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                      <img src={thumb} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #EDEDEA", display: "block" }} />
-                    </a>
-                  );
-                })}
+              {/* 正文 */}
+              <div style={{ fontSize: 13, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", paddingLeft: 44 }}>
+                {log.content}
               </div>
-            )}
 
-            {/* 回復串 */}
-            {hasReplies && (
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #F0F0EE", paddingLeft: 44 }}>
-                {replies.map((r, i) => {
-                  const isEditingThis = editingReply?.logId === log.id && editingReply?.index === i;
-                  return (
-                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: i < replies.length - 1 ? 10 : 0 }}>
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F0EFE8", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                        {(r.author || "?").slice(0, 1)}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: "#555" }}>{r.author}</span>
-                          <span style={{ fontSize: 10, color: "#bbb" }}>{relativeTime(r.createdAt)}</span>
-                          {r.updatedAt && <span style={{ fontSize: 10, color: "#ccc" }}>（已編輯）</span>}
-                          {!isEditingThis && (
-                            <button onClick={() => { setEditingReply({ logId: log.id, index: i }); setEditingReplyContent(r.content); }}
-                              style={{ fontSize: 10, padding: "1px 7px", borderRadius: 4, border: "1px solid #e8e8e4", background: "#f8f8f6", color: "#888", cursor: "pointer", fontFamily: "inherit", marginLeft: 2 }}>
-                              編輯
-                            </button>
+              {/* 照片 */}
+              {log.photos?.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
+                  {log.photos.map((url, i) => {
+                    const thumb = url.includes("/upload/")
+                      ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
+                      : url;
+                    return (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="photo-wrap">
+                        <img src={thumb} alt="" />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 回復串 */}
+              {hasReplies && (
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #F0F0EE", paddingLeft: 44 }}>
+                  {replies.map((r, i) => {
+                    const isEditingThis = editingReply?.logId === log.id && editingReply?.index === i;
+                    return (
+                      <div key={i} className="anim-reply" style={{ display: "flex", gap: 8, marginBottom: i < replies.length - 1 ? 12 : 0 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#F0EFE8", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>
+                          {(r.author || "?").slice(0, 1)}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "#444" }}>{r.author}</span>
+                            <span style={{ fontSize: 10, color: "#bbb" }}>{relativeTime(r.createdAt)}</span>
+                            {r.updatedAt && <span style={{ fontSize: 10, color: "#ccc" }}>（已編輯）</span>}
+                            {!isEditingThis && (
+                              <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                                {smBtn("編輯", () => { setEditingReply({ logId: log.id, index: i }); setEditingReplyContent(r.content); })}
+                                {smBtn("刪除", () => deleteReply(log, i), { danger: true })}
+                              </span>
+                            )}
+                          </div>
+
+                          {isEditingThis ? (
+                            <div className="anim-form-open">
+                              <div style={{ position: "relative", marginBottom: 6 }}>
+                                <textarea
+                                  value={editingReplyContent}
+                                  onChange={e => setEditingReplyContent(e.target.value)}
+                                  onKeyDown={e => handleContentKeyDown(e, () => saveReplyEdit(log))}
+                                  rows={2}
+                                  placeholder="Ctrl+Enter 送出"
+                                  style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }}
+                                  autoFocus
+                                />
+                                <span style={{ position: "absolute", right: 8, bottom: 6, fontSize: 10, color: "#ccc" }}>{editingReplyContent.length}</span>
+                              </div>
+                              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                                {smBtn("取消", () => { setEditingReply(null); setEditingReplyContent(""); })}
+                                {smBtn("儲存", () => saveReplyEdit(log), { primary: true, style: { opacity: editingReplyContent.trim() ? 1 : 0.5 } })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{r.content}</div>
                           )}
                         </div>
-                        {isEditingThis ? (
-                          <div>
-                            <div style={{ position: "relative", marginBottom: 6 }}>
-                              <textarea
-                                value={editingReplyContent}
-                                onChange={e => setEditingReplyContent(e.target.value)}
-                                rows={2}
-                                style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }}
-                                autoFocus
-                              />
-                              <span style={{ position: "absolute", right: 8, bottom: 6, fontSize: 10, color: "#ccc" }}>{editingReplyContent.length}</span>
-                            </div>
-                            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                              <button onClick={() => { setEditingReply(null); setEditingReplyContent(""); }}
-                                style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
-                                取消
-                              </button>
-                              <button onClick={() => saveReplyEdit(log)} disabled={!editingReplyContent.trim()}
-                                style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "none", background: editingReplyContent.trim() ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-                                儲存
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 12, color: "#444", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{r.content}</div>
-                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* 回復輸入框 */}
-            {isReplying && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0F0EE" }}>
-                <div style={{ position: "relative", marginBottom: 8 }}>
-                  <textarea
-                    value={replyContent} onChange={e => setReplyContent(e.target.value)}
-                    rows={2} placeholder="輸入回復…"
-                    style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 22 }}
-                    autoFocus
-                  />
-                  <span style={{ position: "absolute", right: 10, bottom: 7, fontSize: 10, color: "#ccc" }}>{replyContent.length}</span>
+                    );
+                  })}
                 </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                  <button onClick={() => { setReplyingId(null); setReplyContent(""); }}
-                    style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1.5px solid #e8e8e4", background: "#fff", color: "#666", cursor: "pointer", fontFamily: "inherit" }}>
-                    取消
-                  </button>
-                  <button onClick={() => submitReply(log.id)} disabled={!replyContent.trim() || replySaving}
-                    style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "none", background: replyContent.trim() ? GREEN : "#ccc", color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-                    {replySaving ? "送出中…" : "送出"}
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* 操作列 */}
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 10 }}>
-              {hasReplies && (
-                <span style={{ fontSize: 10, color: "#bbb", marginRight: "auto" }}>已有回復，原文不可修改</span>
+              {/* 回復輸入框 */}
+              {isReplying && (
+                <div className="anim-form-open" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0F0EE" }}>
+                  <div style={{ position: "relative", marginBottom: 8 }}>
+                    <textarea
+                      value={replyContent} onChange={e => setReplyContent(e.target.value)}
+                      onKeyDown={e => handleContentKeyDown(e, () => submitReply(log.id))}
+                      rows={2} placeholder="輸入回復… (Ctrl+Enter 送出)"
+                      style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 22 }}
+                      autoFocus
+                    />
+                    <span style={{ position: "absolute", right: 10, bottom: 7, fontSize: 10, color: "#ccc" }}>{replyContent.length}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                    {smBtn("取消", () => { setReplyingId(null); setReplyContent(""); })}
+                    {smBtn("送出", () => submitReply(log.id), { primary: true, style: { opacity: replyContent.trim() && !replySaving ? 1 : 0.6 } })}
+                  </div>
+                </div>
               )}
-              {!isReplying && (
-                <button onClick={() => { setReplyingId(log.id); setReplyContent(""); }}
-                  style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1.5px solid #e8e8e4", background: "#f8f8f6", color: "#555", cursor: "pointer", fontFamily: "inherit" }}>
-                  回復
-                </button>
-              )}
-              {!hasReplies && (
-                <>
-                  <button onClick={() => openForm(log)}
-                    style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1.5px solid #e8e8e4", background: "#f8f8f6", color: "#555", cursor: "pointer", fontFamily: "inherit" }}>
-                    編輯
-                  </button>
-                  <button onClick={() => del(log.id)}
-                    style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1.5px solid #e8e8e4", background: "#f8f8f6", color: "#A32D2D", cursor: "pointer", fontFamily: "inherit" }}>
-                    刪除
-                  </button>
-                </>
-              )}
+
+              {/* 操作列 */}
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 10 }}>
+                {hasReplies && !isReplying && (
+                  <span style={{ fontSize: 10, color: "#bbb", marginRight: "auto" }}>已有回復，原文不可修改</span>
+                )}
+                {!isReplying && smBtn("回復", () => { setReplyingId(log.id); setReplyContent(""); })}
+                {!hasReplies && smBtn("編輯", () => openForm(log))}
+                {!hasReplies && smBtn("刪除", () => del(log.id), { danger: true })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
       {!formOpen && (
-        <button onClick={() => openForm()}
-          style={{ width: "100%", padding: 13, borderRadius: 10, border: `1.5px dashed ${GREEN}`, background: "transparent", color: GREEN, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>
+        <button onClick={() => openForm()} className="btn-press"
+          style={{ width: "100%", padding: 13, borderRadius: 10, border: `1.5px dashed ${GREEN}`, background: "transparent", color: GREEN, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 4, transition: "background .15s" }}>
           + 新增討論記錄
         </button>
       )}

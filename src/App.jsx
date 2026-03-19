@@ -31,8 +31,14 @@ export default function App() {
   // 載入中
   if (user === undefined) {
     return (
-      <div style={{ fontFamily: '"Noto Sans TC", sans-serif', maxWidth: 720, margin: "0 auto", minHeight: "100vh", background: "#F5F5F3", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#aaa", fontSize: 14 }}>載入中…</div>
+      <div style={{
+        fontFamily: '"Noto Sans TC", sans-serif',
+        maxWidth: 720, margin: "0 auto", minHeight: "100vh",
+        background: "#F5F5F3", display: "flex", alignItems: "center", justifyContent: "center",
+        flexDirection: "column", gap: 16,
+      }}>
+        <div className="spinner" />
+        <div style={{ color: "#aaa", fontSize: 13 }}>載入中…</div>
       </div>
     );
   }
@@ -51,7 +57,7 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 5, alignItems: "center", paddingTop: 4, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
             {ROLES.map(r => (
-              <button key={r} onClick={() => setRole(r)}
+              <button key={r} onClick={() => setRole(r)} className="btn-press"
                 style={{
                   fontSize: 12, padding: "5px 12px", borderRadius: 20,
                   border: "1.5px solid rgba(255,255,255,0.3)",
@@ -65,7 +71,7 @@ export default function App() {
               </button>
             ))}
             {/* 登出按鈕 */}
-            <button onClick={() => signOut(auth)}
+            <button onClick={() => signOut(auth)} className="btn-press"
               style={{
                 fontSize: 11, padding: "4px 10px", borderRadius: 20,
                 border: "1px solid rgba(255,255,255,0.2)",
@@ -80,7 +86,7 @@ export default function App() {
         {/* Segment tab */}
         <div style={{ display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: "10px 10px 0 0", padding: "4px 4px 0" }}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => setTab(t.id)} className="btn-press"
               style={{
                 flex: 1, padding: "9px 6px", border: "none",
                 borderRadius: tab === t.id ? "8px 8px 0 0" : 8,
@@ -88,7 +94,7 @@ export default function App() {
                 color: tab === t.id ? GREEN : "rgba(255,255,255,0.65)",
                 fontSize: 12, fontWeight: tab === t.id ? 700 : 400,
                 cursor: "pointer", fontFamily: "inherit",
-                transition: "all .15s", whiteSpace: "nowrap",
+                transition: "all .18s", whiteSpace: "nowrap",
               }}>
               {t.label}
             </button>
@@ -96,7 +102,8 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ padding: "18px 16px 36px" }}>
+      {/* Tab 內容 — key 觸發切換動畫 */}
+      <div key={tab} className="tab-pane" style={{ padding: "18px 16px 36px" }}>
         {tab === "logs" && <LogsTab role={role} onError={showError} />}
         {tab === "members" && <MembersTab onError={showError} />}
         {tab === "project" && <ProjectTab onError={showError} />}
@@ -105,12 +112,13 @@ export default function App() {
 
       {/* 全域錯誤 Toast */}
       {appError && (
-        <div style={{
-          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          background: "#A32D2D", color: "#fff", padding: "10px 22px",
-          borderRadius: 10, fontSize: 13, fontWeight: 700,
-          zIndex: 9999, maxWidth: "90%", textAlign: "center",
-          boxShadow: "0 4px 12px rgba(163,45,45,0.3)",
+        <div className="anim-toast" style={{
+          position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+          background: "#A32D2D", color: "#fff", padding: "11px 24px",
+          borderRadius: 12, fontSize: 13, fontWeight: 700,
+          zIndex: 9999, maxWidth: "88%", textAlign: "center",
+          boxShadow: "0 6px 24px rgba(163,45,45,0.35)",
+          letterSpacing: 0.3,
         }}>
           {appError}
         </div>

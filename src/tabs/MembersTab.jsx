@@ -62,7 +62,7 @@ export function MembersTab({ onError }) {
       </div>
 
       {formOpen && (
-        <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, marginBottom: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+        <div className="anim-form-open" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, marginBottom: 16, boxShadow: "0 4px 16px rgba(0,0,0,0.09)" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: GREEN, letterSpacing: 2, marginBottom: 14 }}>{editId ? "編輯成員" : "新增成員"}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 12px", marginBottom: 12 }}>
             <div>
@@ -114,7 +114,7 @@ export function MembersTab({ onError }) {
       {members.map(m => {
         const rc = ROLE_COLORS[m.role] || ROLE_COLORS["技師"];
         return (
-          <div key={m.id} style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: `4px solid ${rc.color}`, borderRadius: 12, padding: "16px 16px", marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <div key={m.id} className="card-hover anim-fade-in" style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: `4px solid ${rc.color}`, borderRadius: 12, padding: "16px 16px", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: "50%", background: rc.bg, color: rc.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
                 {(m.name || "?").slice(0, 1)}
