@@ -6,8 +6,8 @@ import {
 import { db } from "../firebase";
 
 // ── Cloudinary 設定（免費帳號，填入你的值）──────────────────────
-const CLOUDINARY_CLOUD_NAME = "YOUR_CLOUD_NAME";     // ← 填入
-const CLOUDINARY_UPLOAD_PRESET = "YOUR_UPLOAD_PRESET"; // ← 填入（unsigned preset）
+const CLOUDINARY_CLOUD_NAME = "dkyp5jocn";
+const CLOUDINARY_UPLOAD_PRESET = "ml_default";
 // ────────────────────────────────────────────────────────────────
 import {
   STAGES, TAGS, TAG_STYLES, GREEN, GREEN_LIGHT,
