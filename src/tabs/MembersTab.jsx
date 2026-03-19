@@ -4,7 +4,7 @@ import {
   doc, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { SPECIALTIES, ROLE_COLORS, GREEN, GREEN_LIGHT, inp } from "../shared";
+import { SPECIALTIES, ROLE_COLORS, GREEN, GREEN_LIGHT, inp, useConfirm } from "../shared";
 
 export function MembersTab({ onError }) {
   const [members, setMembers] = useState([]);
@@ -12,6 +12,7 @@ export function MembersTab({ onError }) {
   const [form, setForm] = useState({ name: "", role: "技師", phone: "", email: "", specialty: [], note: "" });
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirm, confirmModal] = useConfirm();
 
   useEffect(() =>
     onSnapshot(collection(db, "members"), snap =>
@@ -45,13 +46,15 @@ export function MembersTab({ onError }) {
   };
 
   const del = async id => {
-    if (!confirm("確定刪除此成員？")) return;
+    const ok = await confirm("成員資料將被永久移除。", { title: "刪除成員", confirmText: "確認刪除" });
+    if (!ok) return;
     try { await deleteDoc(doc(db, "members", id)); }
     catch { onError("刪除失敗，請重試"); }
   };
 
   return (
     <div>
+      {confirmModal}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#444" }}>成員名單 ({members.length})</span>
         {!formOpen && (

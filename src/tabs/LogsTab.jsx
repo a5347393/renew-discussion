@@ -3,16 +3,15 @@ import {
   collection, addDoc, updateDoc, deleteDoc,
   doc, onSnapshot, orderBy, query, serverTimestamp, arrayUnion,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import {
   STAGES, TAGS, TAG_STYLES, GREEN, GREEN_LIGHT,
-  inp, today, TagPill, Avatar, relativeTime,
+  inp, today, TagPill, Avatar, relativeTime, useConfirm,
 } from "../shared";
 
 const CLOUDINARY_CLOUD_NAME = "dkyp5jocn";
 const CLOUDINARY_UPLOAD_PRESET = "ml_default";
 
-/* ── Skeleton card for loading state ── */
 function SkeletonCard() {
   return (
     <div style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: "4px solid #e8e8e4", borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
@@ -48,8 +47,30 @@ export function LogsTab({ role, onError }) {
   const [replyingId, setReplyingId] = useState(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySaving, setReplySaving] = useState(false);
-  const [editingReply, setEditingReply] = useState(null); // { logId, index }
+  const [editingReply, setEditingReply] = useState(null);
   const [editingReplyContent, setEditingReplyContent] = useState("");
+  const [unreadBefore, setUnreadBefore] = useState(null);
+
+  const [confirm, confirmModal] = useConfirm();
+
+  // ── 已讀/未讀：記錄上次瀏覽時間 ──
+  useEffect(() => {
+    const uid = auth.currentUser?.uid || "guest";
+    const key = `renew-last-read-${uid}`;
+    const last = localStorage.getItem(key);
+    setUnreadBefore(last ? new Date(last) : null);
+    // 3 秒後更新「已讀」時間
+    const timer = setTimeout(() => {
+      localStorage.setItem(key, new Date().toISOString());
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isNew = (log) => {
+    if (!unreadBefore || !log.createdAt) return false;
+    const d = log.createdAt?.toDate ? log.createdAt.toDate() : new Date(log.createdAt);
+    return d > unreadBefore;
+  };
 
   useEffect(() => {
     const q = query(collection(db, "logs"), orderBy("createdAt", "desc"));
@@ -135,9 +156,15 @@ export function LogsTab({ role, onError }) {
   };
 
   const del = async (id) => {
-    if (!confirm("確定刪除此記錄？")) return;
+    const ok = await confirm("此操作無法復原。", { title: "刪除討論記錄", confirmText: "確認刪除" });
+    if (!ok) return;
     try { await deleteDoc(doc(db, "logs", id)); }
     catch { onError("刪除失敗，請重試"); }
+  };
+
+  const togglePin = async (id, pinned) => {
+    try { await updateDoc(doc(db, "logs", id), { pinned: !pinned }); }
+    catch { onError("操作失敗，請重試"); }
   };
 
   const submitReply = async (logId) => {
@@ -164,7 +191,8 @@ export function LogsTab({ role, onError }) {
   };
 
   const deleteReply = async (log, index) => {
-    if (!confirm("確定刪除此回復？")) return;
+    const ok = await confirm("確定刪除此回復？");
+    if (!ok) return;
     try {
       const newReplies = log.replies.filter((_, i) => i !== index);
       await updateDoc(doc(db, "logs", log.id), { replies: newReplies });
@@ -186,11 +214,15 @@ export function LogsTab({ role, onError }) {
   };
 
   const stageCounts = STAGES.reduce((a, s) => ({ ...a, [s]: logs.filter(l => l.stage === s).length }), {});
-  const filtered = logs.filter(l =>
+
+  const baseFiltered = logs.filter(l =>
     (filter === "全部" || l.stage === filter) &&
     (!search || l.content?.includes(search) || l.author?.includes(search) ||
       l.replies?.some(r => r.content?.includes(search)))
   );
+  const pinnedLogs = baseFiltered.filter(l => l.pinned);
+  const unpinnedLogs = baseFiltered.filter(l => !l.pinned);
+  const newCount = baseFiltered.filter(l => isNew(l)).length;
 
   const smBtn = (label, onClick, opts = {}) => (
     <button onClick={onClick} className="btn-press" style={{
@@ -203,8 +235,170 @@ export function LogsTab({ role, onError }) {
     }}>{label}</button>
   );
 
+  const renderCard = (log) => {
+    const ts = TAG_STYLES[log.tag] || TAG_STYLES["其他"];
+    const replies = log.replies || [];
+    const hasReplies = replies.length > 0;
+    const isReplying = replyingId === log.id;
+    const authorRole = getAuthorRole(log);
+    const _isNew = isNew(log);
+
+    return (
+      <div key={log.id} className="card-hover anim-fade-in"
+        style={{
+          background: _isNew ? "#FAFFF8" : "#fff",
+          border: `1px solid ${log.pinned ? "#F0E8D8" : _isNew ? "#C8ECDF" : "#EDEDEA"}`,
+          borderLeft: `4px solid ${ts.color}`,
+          borderRadius: 12, padding: "14px 16px", marginBottom: 10,
+          boxShadow: log.pinned
+            ? "0 2px 10px rgba(156,75,0,0.07)"
+            : _isNew ? "0 2px 8px rgba(10,102,71,0.07)"
+            : "0 1px 4px rgba(0,0,0,0.05)",
+        }}>
+
+        {/* 卡片頭部 */}
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
+          <Avatar name={log.author} role={authorRole} size={34} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#222" }}>{log.author}</span>
+              <TagPill tag={log.tag} />
+              <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>{log.stage}</span>
+              {/* 右側徽章 */}
+              <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>
+                {_isNew && (
+                  <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: GREEN_LIGHT, color: GREEN, fontWeight: 700, border: `1px solid ${GREEN}33`, letterSpacing: 0.5 }}>NEW</span>
+                )}
+                {log.pinned && (
+                  <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 20, background: "#FEF3E6", color: "#9C4B00", fontWeight: 700, border: "1px solid #9C4B0033" }}>釘選</span>
+                )}
+                <span style={{ fontSize: 11, color: "#bbb" }}>
+                  {relativeTime(log.date)}
+                  {log.updatedAt && <span style={{ marginLeft: 4 }}>（已編輯）</span>}
+                </span>
+              </span>
+            </div>
+            {hasReplies && (
+              <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>{replies.length} 則回復</div>
+            )}
+          </div>
+        </div>
+
+        {/* 正文 */}
+        <div style={{ fontSize: 13, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", paddingLeft: 44 }}>
+          {log.content}
+        </div>
+
+        {/* 照片 */}
+        {log.photos?.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
+            {log.photos.map((url, i) => {
+              const thumb = url.includes("/upload/")
+                ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
+                : url;
+              return (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="photo-wrap">
+                  <img src={thumb} alt="" />
+                </a>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 回復串 */}
+        {hasReplies && (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #F0F0EE", paddingLeft: 44 }}>
+            {replies.map((r, i) => {
+              const isEditingThis = editingReply?.logId === log.id && editingReply?.index === i;
+              return (
+                <div key={i} className="anim-reply" style={{ display: "flex", gap: 8, marginBottom: i < replies.length - 1 ? 12 : 0 }}>
+                  <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#F0EFE8", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>
+                    {(r.author || "?").slice(0, 1)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#444" }}>{r.author}</span>
+                      <span style={{ fontSize: 10, color: "#bbb" }}>{relativeTime(r.createdAt)}</span>
+                      {r.updatedAt && <span style={{ fontSize: 10, color: "#ccc" }}>（已編輯）</span>}
+                      {!isEditingThis && (
+                        <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                          {smBtn("編輯", () => { setEditingReply({ logId: log.id, index: i }); setEditingReplyContent(r.content); })}
+                          {smBtn("刪除", () => deleteReply(log, i), { danger: true })}
+                        </span>
+                      )}
+                    </div>
+
+                    {isEditingThis ? (
+                      <div className="anim-form-open">
+                        <div style={{ position: "relative", marginBottom: 6 }}>
+                          <textarea
+                            value={editingReplyContent}
+                            onChange={e => setEditingReplyContent(e.target.value)}
+                            onKeyDown={e => handleContentKeyDown(e, () => saveReplyEdit(log))}
+                            rows={2} placeholder="Ctrl+Enter 送出"
+                            style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }}
+                            autoFocus
+                          />
+                          <span style={{ position: "absolute", right: 8, bottom: 6, fontSize: 10, color: "#ccc" }}>{editingReplyContent.length}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          {smBtn("取消", () => { setEditingReply(null); setEditingReplyContent(""); })}
+                          {smBtn("儲存", () => saveReplyEdit(log), { primary: true, style: { opacity: editingReplyContent.trim() ? 1 : 0.5 } })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{r.content}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 回復輸入框 */}
+        {isReplying && (
+          <div className="anim-form-open" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0F0EE" }}>
+            <div style={{ position: "relative", marginBottom: 8 }}>
+              <textarea
+                value={replyContent} onChange={e => setReplyContent(e.target.value)}
+                onKeyDown={e => handleContentKeyDown(e, () => submitReply(log.id))}
+                rows={2} placeholder="輸入回復… (Ctrl+Enter 送出)"
+                style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 22 }}
+                autoFocus
+              />
+              <span style={{ position: "absolute", right: 10, bottom: 7, fontSize: 10, color: "#ccc" }}>{replyContent.length}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+              {smBtn("取消", () => { setReplyingId(null); setReplyContent(""); })}
+              {smBtn("送出", () => submitReply(log.id), { primary: true, style: { opacity: replyContent.trim() && !replySaving ? 1 : 0.6 } })}
+            </div>
+          </div>
+        )}
+
+        {/* 操作列 */}
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 10 }}>
+          {hasReplies && !isReplying && (
+            <span style={{ fontSize: 10, color: "#bbb", marginRight: "auto" }}>已有回復，原文不可修改</span>
+          )}
+          {/* 釘選切換 */}
+          {smBtn(log.pinned ? "取消釘選" : "釘選", () => togglePin(log.id, log.pinned), {
+            style: log.pinned
+              ? { background: "#FEF3E6", color: "#9C4B00", border: "1px solid #9C4B0033" }
+              : {},
+          })}
+          {!isReplying && smBtn("回復", () => { setReplyingId(log.id); setReplyContent(""); })}
+          {!hasReplies && smBtn("編輯", () => openForm(log))}
+          {!hasReplies && smBtn("刪除", () => del(log.id), { danger: true })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
+      {confirmModal}
+
       {/* 新增/編輯表單 */}
       {formOpen && (
         <div className="anim-form-open" style={{ background: "#fff", border: "1px solid #EDEDEA", borderRadius: 12, padding: 18, marginBottom: 18, boxShadow: "0 4px 16px rgba(0,0,0,0.09)" }}>
@@ -312,162 +506,58 @@ export function LogsTab({ role, onError }) {
         {search && <button onClick={() => setSearch("")} className="btn-press" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#bbb" }}>×</button>}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12, color: "#888" }}>{filter === "全部" ? `共 ${filtered.length} 筆` : `${filter} · ${filtered.length} 筆`}</span>
-        {(filter !== "全部" || search) && <button onClick={() => { setFilter("全部"); setSearch(""); }} className="btn-press" style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>清除篩選</button>}
+      {/* 狀態列 */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#888" }}>
+            {filter === "全部" ? `共 ${baseFiltered.length} 筆` : `${filter} · ${baseFiltered.length} 筆`}
+          </span>
+          {newCount > 0 && (
+            <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>{newCount} 則新訊息</span>
+          )}
+        </div>
+        {(filter !== "全部" || search) && (
+          <button onClick={() => { setFilter("全部"); setSearch(""); }} className="btn-press"
+            style={{ fontSize: 12, color: GREEN, background: "none", border: "none", cursor: "pointer" }}>
+            清除篩選
+          </button>
+        )}
       </div>
 
       {/* 載入 skeleton */}
       {loading && [1, 2, 3].map(i => <SkeletonCard key={i} />)}
 
-      {!loading && filtered.length === 0 && (
+      {!loading && baseFiltered.length === 0 && (
         <div style={{ textAlign: "center", padding: 48, color: "#bbb", fontSize: 13 }}>
           {search ? `找不到「${search}」相關記錄` : "尚無討論記錄"}
         </div>
       )}
 
-      {/* 討論卡片 */}
-      <div className="card-stagger">
-        {filtered.map(log => {
-          const ts = TAG_STYLES[log.tag] || TAG_STYLES["其他"];
-          const replies = log.replies || [];
-          const hasReplies = replies.length > 0;
-          const isReplying = replyingId === log.id;
-          const authorRole = getAuthorRole(log);
+      {/* 釘選區塊 */}
+      {pinnedLogs.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#9C4B00", letterSpacing: 1 }}>釘選記錄</span>
+            <div style={{ flex: 1, height: 1, background: "#F0E8D8" }} />
+          </div>
+          <div className="card-stagger">{pinnedLogs.map(renderCard)}</div>
+        </>
+      )}
 
-          return (
-            <div key={log.id} className="card-hover anim-fade-in"
-              style={{ background: "#fff", border: "1px solid #EDEDEA", borderLeft: `4px solid ${ts.color}`, borderRadius: 12, padding: "14px 16px", marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+      {/* 一般記錄分隔線 */}
+      {pinnedLogs.length > 0 && unpinnedLogs.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }}>
+          <div style={{ flex: 1, height: 1, background: "#EDEDEA" }} />
+          <span style={{ fontSize: 10, color: "#bbb" }}>其他討論</span>
+          <div style={{ flex: 1, height: 1, background: "#EDEDEA" }} />
+        </div>
+      )}
 
-              {/* 卡片頭部 */}
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                <Avatar name={log.author} role={authorRole} size={34} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#222" }}>{log.author}</span>
-                    <TagPill tag={log.tag} />
-                    <span style={{ fontSize: 11, color: GREEN, fontWeight: 600 }}>{log.stage}</span>
-                    <span style={{ marginLeft: "auto", fontSize: 11, color: "#bbb" }}>
-                      {relativeTime(log.date)}
-                      {log.updatedAt && <span style={{ marginLeft: 4 }}>（已編輯）</span>}
-                    </span>
-                  </div>
-                  {hasReplies && (
-                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>{replies.length} 則回復</div>
-                  )}
-                </div>
-              </div>
-
-              {/* 正文 */}
-              <div style={{ fontSize: 13, color: "#333", lineHeight: 1.8, whiteSpace: "pre-wrap", paddingLeft: 44 }}>
-                {log.content}
-              </div>
-
-              {/* 照片 */}
-              {log.photos?.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, paddingLeft: 44 }}>
-                  {log.photos.map((url, i) => {
-                    const thumb = url.includes("/upload/")
-                      ? url.replace("/upload/", "/upload/w_144,h_144,c_fill,q_auto/")
-                      : url;
-                    return (
-                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="photo-wrap">
-                        <img src={thumb} alt="" />
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* 回復串 */}
-              {hasReplies && (
-                <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #F0F0EE", paddingLeft: 44 }}>
-                  {replies.map((r, i) => {
-                    const isEditingThis = editingReply?.logId === log.id && editingReply?.index === i;
-                    return (
-                      <div key={i} className="anim-reply" style={{ display: "flex", gap: 8, marginBottom: i < replies.length - 1 ? 12 : 0 }}>
-                        <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#F0EFE8", color: "#888", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>
-                          {(r.author || "?").slice(0, 1)}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "#444" }}>{r.author}</span>
-                            <span style={{ fontSize: 10, color: "#bbb" }}>{relativeTime(r.createdAt)}</span>
-                            {r.updatedAt && <span style={{ fontSize: 10, color: "#ccc" }}>（已編輯）</span>}
-                            {!isEditingThis && (
-                              <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-                                {smBtn("編輯", () => { setEditingReply({ logId: log.id, index: i }); setEditingReplyContent(r.content); })}
-                                {smBtn("刪除", () => deleteReply(log, i), { danger: true })}
-                              </span>
-                            )}
-                          </div>
-
-                          {isEditingThis ? (
-                            <div className="anim-form-open">
-                              <div style={{ position: "relative", marginBottom: 6 }}>
-                                <textarea
-                                  value={editingReplyContent}
-                                  onChange={e => setEditingReplyContent(e.target.value)}
-                                  onKeyDown={e => handleContentKeyDown(e, () => saveReplyEdit(log))}
-                                  rows={2}
-                                  placeholder="Ctrl+Enter 送出"
-                                  style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 20 }}
-                                  autoFocus
-                                />
-                                <span style={{ position: "absolute", right: 8, bottom: 6, fontSize: 10, color: "#ccc" }}>{editingReplyContent.length}</span>
-                              </div>
-                              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                                {smBtn("取消", () => { setEditingReply(null); setEditingReplyContent(""); })}
-                                {smBtn("儲存", () => saveReplyEdit(log), { primary: true, style: { opacity: editingReplyContent.trim() ? 1 : 0.5 } })}
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{r.content}</div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* 回復輸入框 */}
-              {isReplying && (
-                <div className="anim-form-open" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #F0F0EE" }}>
-                  <div style={{ position: "relative", marginBottom: 8 }}>
-                    <textarea
-                      value={replyContent} onChange={e => setReplyContent(e.target.value)}
-                      onKeyDown={e => handleContentKeyDown(e, () => submitReply(log.id))}
-                      rows={2} placeholder="輸入回復… (Ctrl+Enter 送出)"
-                      style={{ ...inp, resize: "vertical", fontSize: 12, paddingBottom: 22 }}
-                      autoFocus
-                    />
-                    <span style={{ position: "absolute", right: 10, bottom: 7, fontSize: 10, color: "#ccc" }}>{replyContent.length}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-                    {smBtn("取消", () => { setReplyingId(null); setReplyContent(""); })}
-                    {smBtn("送出", () => submitReply(log.id), { primary: true, style: { opacity: replyContent.trim() && !replySaving ? 1 : 0.6 } })}
-                  </div>
-                </div>
-              )}
-
-              {/* 操作列 */}
-              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 10 }}>
-                {hasReplies && !isReplying && (
-                  <span style={{ fontSize: 10, color: "#bbb", marginRight: "auto" }}>已有回復，原文不可修改</span>
-                )}
-                {!isReplying && smBtn("回復", () => { setReplyingId(log.id); setReplyContent(""); })}
-                {!hasReplies && smBtn("編輯", () => openForm(log))}
-                {!hasReplies && smBtn("刪除", () => del(log.id), { danger: true })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <div className="card-stagger">{unpinnedLogs.map(renderCard)}</div>
 
       {!formOpen && (
         <button onClick={() => openForm()} className="btn-press"
-          style={{ width: "100%", padding: 13, borderRadius: 10, border: `1.5px dashed ${GREEN}`, background: "transparent", color: GREEN, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 4, transition: "background .15s" }}>
+          style={{ width: "100%", padding: 13, borderRadius: 10, border: `1.5px dashed ${GREEN}`, background: "transparent", color: GREEN, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>
           + 新增討論記錄
         </button>
       )}

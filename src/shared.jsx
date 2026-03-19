@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export const STAGES = ["初步評估", "設計規劃", "申請送件", "施工中", "驗收完成"];
 export const TAGS = ["結構", "預算", "設計", "施工", "法規", "其他"];
 export const ROLES = ["業主", "技師", "設計師"];
@@ -103,4 +105,60 @@ export function TagPill({ tag }) {
       {tag}
     </span>
   );
+}
+
+/** 自訂確認 Modal（取代瀏覽器 confirm()） */
+export function ConfirmModal({ title, message, confirmText = "確認刪除", cancelText = "取消", onConfirm, onCancel }) {
+  return (
+    <div
+      onClick={onCancel}
+      style={{
+        position: "fixed", inset: 0, zIndex: 10000,
+        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        fontFamily: '"Noto Sans TC", sans-serif',
+      }}>
+      <div className="anim-form-open" onClick={e => e.stopPropagation()} style={{
+        background: "#fff", borderRadius: 16, padding: "26px 24px",
+        maxWidth: 300, width: "100%",
+        boxShadow: "0 12px 48px rgba(0,0,0,0.2)",
+      }}>
+        {title && (
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 8 }}>{title}</div>
+        )}
+        <div style={{ fontSize: 13, color: "#555", lineHeight: 1.7, marginBottom: 24 }}>{message}</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} className="btn-press" style={{
+            fontSize: 13, padding: "9px 18px", borderRadius: 8,
+            border: "1.5px solid #e8e8e4", background: "#fff", color: "#666",
+            cursor: "pointer", fontFamily: "inherit",
+          }}>{cancelText}</button>
+          <button onClick={onConfirm} className="btn-press" style={{
+            fontSize: 13, padding: "9px 22px", borderRadius: 8, border: "none",
+            background: "#A32D2D", color: "#fff",
+            cursor: "pointer", fontFamily: "inherit", fontWeight: 700,
+          }}>{confirmText}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Promise-based 確認 hook — 回傳 [confirm函式, modal節點] */
+export function useConfirm() {
+  const [state, setState] = useState(null);
+
+  const confirm = (message, opts = {}) =>
+    new Promise(resolve => setState({ message, opts, resolve }));
+
+  const node = state ? (
+    <ConfirmModal
+      message={state.message}
+      {...state.opts}
+      onConfirm={() => { state.resolve(true); setState(null); }}
+      onCancel={() => { state.resolve(false); setState(null); }}
+    />
+  ) : null;
+
+  return [confirm, node];
 }
